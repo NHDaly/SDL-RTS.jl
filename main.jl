@@ -346,7 +346,7 @@ function render(scene::GameScene, renderer, win)
             percent = time_remaining(b) / b.buildLength
             renderProgressBar(percent, cam, renderer, pos,
                     UIPixelDims(200, 10), blendAlphaColors(playerRenderColor(p), unitRenderColor(b.unitType)),
-                    kBackgroundColor, healthBarOutlineColor)
+                    kBuildOpsBgColor, healthBarOutlineColor)
             buildOpsHeight += 10
         end
     end

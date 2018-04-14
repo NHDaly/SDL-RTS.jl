@@ -28,6 +28,7 @@ kCopyrightNotices = ["Copyright (c) 2018 @nhdalyMadeThis, LLC.",
 
 # Game Rendering
 kBackgroundColor = SDL2.Color(210,210,210,255)
+kBuildOpsBgColor = SDL2.Color(210,210,210,0x80)
 kFighterColor = SDL2.Color(0xff,0xff,0xff,0x22) # transparent
 kWorkerColor = SDL2.Color(0,0,0,0x55) # transparent
 
