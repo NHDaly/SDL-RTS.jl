@@ -146,6 +146,8 @@ sceneStack = []  # Used to keep track of the current scene
 
 include("game_configs.jl")
 
+e = nothing  # FOR DEBUGGING ONLY!
+
 """
     runSceneGameLoop(scene, renderer, win, inSceneVar::Ref{Bool})
 The main game loop. Implements the poll, render, update loop, delegating to the
@@ -157,7 +159,7 @@ This loop continues until the provided `inSceneVar` is false, then pops the
 scene off the sceneStack.
 """
 function runSceneGameLoop(scene, renderer, win, inSceneVar::Ref{Bool})
-    global last_10_frame_times, i
+    global last_10_frame_times, i, e
     push!(sceneStack, scene)
     start!(timer)
     while (inSceneVar[])
@@ -233,7 +235,7 @@ function bitcat(outType::Type{T}, arr)::T where T<:Number
     out = zero(outType)
     for x in arr
         out = out << sizeof(x)*8
-        out |= x
+        out |= convert(T, x)  # the `convert` prevents signed T from promoting to Int64.
     end
     out
 end
@@ -251,6 +253,7 @@ function handleEvents!(scene::GameScene, e,t)
     global playing,paused
     # Handle Events
     if (t == SDL2.KEYDOWN || t == SDL2.KEYUP);  handleKeyPress(e,t);
+    elseif (t == SDL2.MOUSEWHEEL); handleMouseScroll(e)
     elseif (t == SDL2.QUIT);  playing[] = false;
     end
 
@@ -259,6 +262,12 @@ function handleEvents!(scene::GameScene, e,t)
          enterPauseGameLoop(renderer,win)
          unpause!(timer)
     end
+end
+function handleMouseScroll(e)
+    my = bitcat(SDL2.Sint32, e[24:-1:21])
+
+    cam.w[] += my * kZoomRate
+    cam.h[] += my * kZoomRate
 end
 
 unitRenderColor(::Type{Fighter}) = kFighterColor
@@ -295,7 +304,7 @@ function render(scene::GameScene, renderer, win)
             pos = UIPixelPos(xPos, winHeight[] - buildOpsHeight)
             percent = time_remaining(b) / b.buildLength
             renderProgressBar(percent, cam, renderer, pos,
-                    200, 10, blendAlphaColors(playerRenderColor(p), unitRenderColor(b.unitType)),
+                    UIPixelDims(200, 10), blendAlphaColors(playerRenderColor(p), unitRenderColor(b.unitType)),
                     kBackgroundColor, healthBarOutlineColor)
             buildOpsHeight += 10
         end
@@ -307,10 +316,10 @@ end
 
 function renderScore(renderer)
     # Size the text with a single-digit score so it doesn't move when score hits double-digits.
-    txtW,_ = sizeText(cam, "Player 1: 0", defaultFontName, defaultFontSize)
+    txtDims = toUIPixelDims(sizeText("Player 1: 0", defaultFontName, defaultFontSize), cam)
     hcat_render_text(["Player 1: $(floor(p1.money))","Player 2: $(floor(p2.money))"], renderer, cam,
          100, UIPixelPos(screenCenterX(), 20)
-         ; fixedWidth=txtW)
+         ; fixedWidth = txtDims.w)
 end
 
 function performUpdates!(scene::GameScene, dt)
@@ -486,8 +495,8 @@ function render(scene::PauseScene, renderer, win)
          0, UIPixelPos(screenCenterX(), winHeight[] - 35);
           fontName="assets/fonts/FiraCode/ttf/FiraCode-Regular.ttf",
           fontSize=16)
-    render(heartIcon, heartPos, cam, renderer; size=UIPixelPos(16,16))
-    render(jlLogoIcon, jlLogoPos, cam, renderer; size=UIPixelPos(16,16))
+    render(heartIcon, heartPos, cam, renderer; size=UIPixelDims(16,16))
+    render(jlLogoIcon, jlLogoPos, cam, renderer; size=UIPixelDims(16,16))
 end
 
 clickedButton = nothing
@@ -524,9 +533,9 @@ function mouseOnButton(m::UIPixelPos, b::CheckboxButton, cam)
 end
 function mouseOnButton(m::UIPixelPos, b::AbstractButton, cam)
     if (!b.enabled) return false end
-    topLeft = UIPixelPos(b.pos.x - b.w/2., b.pos.y - b.h/2.)
-    if m.x > topLeft.x && m.x <= topLeft.x + b.w &&
-        m.y > topLeft.y && m.y <= topLeft.y + b.h
+    topLeft = topLeftPos(b.pos, b.dims)
+    if m.x > topLeft.x && m.x <= topLeft.x + b.dims.w &&
+        m.y > topLeft.y && m.y <= topLeft.y + b.dims.h
         return true
     end
     return false
@@ -586,7 +595,7 @@ Base.@ccallable function julia_main(ARGS::Vector{String})::Cint
         playing[] = paused[] = true
         scene = GameScene()
         runSceneGameLoop(scene, renderer, win, playing)
-    catch e#
+    catch e
         if isa(e, QuitException)
             quitSDL(win)
         else

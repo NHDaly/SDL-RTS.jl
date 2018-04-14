@@ -2,11 +2,11 @@
 buttons = Dict([
     # This button is disabled until the game starts.
     :bRestart =>
-        MenuButton(false, UIPixelPos(0,0), 200, 30, "New Game",
+        MenuButton(false, UIPixelPos(0,0), UIPixelDims(200, 30), "New Game",
             ()->(resetGame(); buttons[:bNewContinue].callBack();))
     # Note that this text changes to "Continue" after first press.
     :bNewContinue =>
-        MenuButton(true, UIPixelPos(0,0), 200, 30, "New Game",
+        MenuButton(true, UIPixelPos(0,0), UIPixelDims(200, 30), "New Game",
                ()->(global paused,game_started,buttons;
                     paused[] = false; game_started[] = true;
                     buttons[:bNewContinue].text = "Continue"; # After starting game
@@ -14,29 +14,29 @@ buttons = Dict([
                     ))
     :bSoundToggle =>
         CheckboxButton(true,
-            MenuButton(true, UIPixelPos(0,0), 200, 30, "Sound on/off",
+            MenuButton(true, UIPixelPos(0,0), UIPixelDims(200, 30), "Sound on/off",
                 (enabled)->(toggleAudio(enabled)))
             )
     :bQuit =>
-        MenuButton(true, UIPixelPos(0,0), 200, 30, "Quit",
+        MenuButton(true, UIPixelPos(0,0), UIPixelDims(200, 30), "Quit",
             ()->(global paused, playing; paused[] = playing[] = false;))
 
      # Key controls buttons
     :keyALeft =>
-        KeyButton(true, UIPixelPos(0,0), 120, 20, keyDisplayNames[keySettings[:keyP1Worker]],
+        KeyButton(true, UIPixelPos(0,0), UIPixelDims(120, 20), keyDisplayNames[keySettings[:keyP1Worker]],
                ()->(tryChangingKeySettingButton(:keyALeft)))
     :keyARight =>
-        KeyButton(true, UIPixelPos(0,0), 120, 20, keyDisplayNames[keySettings[:keyP1Fighter]],
+        KeyButton(true, UIPixelPos(0,0), UIPixelDims(120, 20), keyDisplayNames[keySettings[:keyP1Fighter]],
                ()->(tryChangingKeySettingButton(:keyARight)))
     :keyP2Worker =>
-        KeyButton(true, UIPixelPos(0,0), 120, 20, keyDisplayNames[keySettings[:keyP2Worker]],
+        KeyButton(true, UIPixelPos(0,0), UIPixelDims(120, 20), keyDisplayNames[keySettings[:keyP2Worker]],
                ()->(tryChangingKeySettingButton(:keyP2Worker)))
     :keyP2Fighter =>
-        KeyButton(true, UIPixelPos(0,0), 120, 20, keyDisplayNames[keySettings[:keyP2Fighter]],
+        KeyButton(true, UIPixelPos(0,0), UIPixelDims(120, 20), keyDisplayNames[keySettings[:keyP2Fighter]],
                ()->(tryChangingKeySettingButton(:keyP2Fighter)))
 
     :bResetDefaultKeys =>
-        KeyButton(false, UIPixelPos(0,0), 240, 30, "Reset Default Controls",
+        KeyButton(false, UIPixelPos(0,0), UIPixelDims(240, 30), "Reset Default Controls",
                ()->(resetDefaultKeys()))
   ])
 paddleAControlsX() = screenCenterX()-260

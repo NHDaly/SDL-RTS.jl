@@ -1,18 +1,33 @@
 # Objects in the game and their supporting functions (update!, collide!, ...)
 
-# Coordinates for the game. can convert between eachother.
-abstract type AbstractCoord end
+# Abstract coordinate system for the game. can convert between different systems.
+abstract type AbstractCoordSystem end
+abstract type AbstractPos{CoordType<:AbstractCoordSystem} end
+abstract type AbstractDims{CoordType<:AbstractCoordSystem} end
+
+""" WorldCoords are the absolute space of the game, independent of camera. """
+struct WorldCoords <: AbstractCoordSystem end
 
 """
     WorldPos(5.0,-200.0)
 x,y float coordinates in the game world (not necessarily the same as pixel
 coordinates on the screen).
 """
-struct WorldPos <: AbstractCoord  # 0,0 == middle
+struct WorldPos <: AbstractPos{WorldCoords}  # 0,0 == middle
     x::Float64
     y::Float64
 end
 toWorldPos(p::WorldPos, c) = p
+"""
+    WorldDims(5.0,-200.0)
+w,h float dimensions in the game world (not necessarily the same as pixel
+coordinates on the screen).
+"""
+struct WorldDims <: AbstractDims{WorldCoords}  # 0,0 == middle
+    w::Float64
+    h::Float64
+end
+toWorldDims(d::WorldDims, c) = d
 
 """
     Vector2D(-2.5,1.0)

@@ -37,6 +37,9 @@ kP2Color = SDL2.Color(203, 60, 51, 255)
 kUIFontSize = 13
 kBuildOpsRenderHeight = kUIFontSize + 25
 
+# UI
+kZoomRate = 10 # pixel/scroll-click
+
 # Unit Attributes
 
 kMaxHealth_Worker = 10
@@ -67,7 +70,7 @@ workerSpeed = 350
 unitRenderWidth=10
 workerRenderWidth=20
 healthBarRenderOffset = 2
-healthBarRenderWidth = 18; healthBarRenderHeight = 2.5
+healthBarRenderWidth = 18; healthBarRenderHeight = 2
 healthBarColor = SDL2.Color(0,210,0,255)
 healthBarOutlineColor = SDL2.Color(0x99,0x99,0x99,0xff)
 

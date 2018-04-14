@@ -11,12 +11,38 @@ function blendAlphaColors(x::SDL2.Color, y::SDL2.Color)
     SDL2.Color(r,g,b,a)
 end
 
-struct ScreenPixelPos <: AbstractCoord  # 0,0 == top-left
+""" Coordinate system to represent the screen, not the Game World.
+Importantly, these are "upside-down" from WorldCoords: (0,0) is top-left, and
+higher numbers go down and to the right.
+"""
+abstract type ScreenCoords <: AbstractCoordSystem end
+
+""" ScreenPixelCoords are absolute space on screen, in actual pixels. """
+struct ScreenPixelCoords <: ScreenCoords end
+
+"""
+    ScreenPixelPos(1200, 1150)
+Absolute position on screen, in pixels. (0,0) is top-left of screen.
+"""
+struct ScreenPixelPos <: AbstractPos{ScreenPixelCoords}  # 0,0 == top-left
     x::Int
     y::Int
 end
 ScreenPixelPos(x::Number, y::Number) = ScreenPixelPos(convert.(Int, floor.((x,y)))...)
-struct UIPixelPos <: AbstractCoord  # 0,0 == top-left (Same as ScreenPixelPos but not scaled.)
+
+# TODO: CONSIDER SWITCHING TO DOWN-SCALING INSTEAD of up-scaling, so you can get
+# more precise sizes (1.5 "pixels" -> 3 pixels). Or consider using Floats for UIPixelCoords.
+""" UIPixelCoords are space on screen, in un-dpi-scaled "pixels". """
+struct UIPixelCoords <: ScreenCoords end
+
+"""
+    UIPixelPos(400, 450)
+Position on screen, in un-dpi-scaled "pixels". (0,0) is top-left of screen.
+
+These should be used whenever placing anything on the screen, since they are
+indepdent of resolution-scaling.
+"""
+struct UIPixelPos <: AbstractPos{UIPixelCoords}  # 0,0 == top-left
     x::Int
     y::Int
 end
@@ -25,8 +51,21 @@ UIPixelPos(x::Number, y::Number) = UIPixelPos(convert.(Int, floor.((x,y)))...)
 +(a::UIPixelPos, b::UIPixelPos) = UIPixelPos(a.x+b.x, a.y+b.y)
 .+(a::UIPixelPos, x::Number) = UIPixelPos(a.x+x, a.y+x)
 
+
+""" Absolute size on screen, in pixels. Use with ScreenPixelPos. """
+struct ScreenPixelDims <: AbstractDims{ScreenPixelCoords}
+    w::Int
+    h::Int
+end
+""" Size on screen, in un-dpi-scaled "pixels". Use with UIPixelPos. """
+struct UIPixelDims <: AbstractDims{UIPixelCoords}
+    w::Int
+    h::Int
+end
+
 mutable struct Camera
     pos::WorldPos
+    # Note, these are in ScreenPixelDims size.
     w::Threads.Atomic{Int32}   # Note: These are Atomics, since they can be modified by the
     h::Threads.Atomic{Int32}   # windowEventWatcher callback, which can run in another thread!
 end
@@ -38,47 +77,70 @@ screenCenterY() = winHeight[]/2
 screenOffsetFromCenter(x::Int,y::Int) = UIPixelPos(screenCenterX()+x,screenCenterY()+y)
 
 worldScale(c::Camera) = cam.w[] / winWidth[];
+dpiScale() = winWidth_highDPI[] / winWidth[];
 function toScreenPos(p::WorldPos, c::Camera)
     scale = worldScale(c)
     ScreenPixelPos(
-        floor(c.w[]/2. + scale*p.x), floor(c.h[]/2. - scale*p.y))
+        round(c.w[]/2. + scale*p.x), round(c.h[]/2. - scale*p.y))
 end
 function toScreenPos(p::UIPixelPos, c::Camera)
-    scale = worldScale(c)
-    ScreenPixelPos(floor(scale*p.x), floor(scale*p.y))
+    scale = dpiScale()
+    ScreenPixelPos(round(scale*p.x), round(scale*p.y))
 end
 toScreenPos(p::ScreenPixelPos, c::Camera) = p
 function toWorldPos(p::ScreenPixelPos, c::Camera)
     scale = worldScale(c)
-    WorldPos(floor(p.x - c.w[]/2.)/scale, -floor(p.y - c.h[]/2.)/scale)
+    WorldPos(round(p.x - c.w[]/2.)/scale, -round(p.y - c.h[]/2.)/scale)
 end
 function toWorldPos(p::UIPixelPos, c::Camera)
-    toWorldPos(toScreenPos(p, cam))
+    toWorldPos(toScreenPos(p, cam), cam)
 end
 function toUIPixelPos(p::ScreenPixelPos, c::Camera)
-    scale = worldScale(c)
-    ScreenPixelPos(floor(p.x/scale), floor(p.y/scale))
+    scale = dpiScale()
+    UIPixelPos(round(p.x/scale), round(p.y/scale))
 end
 function toUIPixelPos(p::WorldPos, c::Camera)
-    toUIPixelPos(toScreenPos(p))
+    toUIPixelPos(toScreenPos(p, cam), cam)
 end
 toUIPixelPos(p::UIPixelPos, c::Camera) = p
-function screenScaleDims(w,h,c::Camera)
-    scale = worldScale(c)
-    round(scale*w), round(scale*h) # round to whole pixels
+function toScreenPixelDims(dims::UIPixelDims,c::Camera)
+    scale = dpiScale()
+    ScreenPixelDims(round(scale*dims.w), round(scale*dims.h))
 end
+function toScreenPixelDims(dims::WorldDims,c::Camera)
+    scale = worldScale(c)  # TODO: This needs to be changed
+    ScreenPixelDims(round(scale*dims.w), round(scale*dims.h))
+end
+toScreenPixelDims(dims::ScreenPixelDims,c::Camera) = dims
+function toUIPixelDims(dims::ScreenPixelDims,c::Camera)
+    scale = dpiScale()
+    UIPixelDims(round(dims.w/scale), round(dims.h/scale))
+end
+function toUIPixelDims(d::WorldDims, c::Camera)
+    toUIPixelDims(toScreenDims(d, cam), cam)
+end
+toUIPixelDims(dims::UIPixelDims,c::Camera) = dims
 
 SetRenderDrawColor(renderer::Ptr{SDL2.Renderer}, c::SDL2.Color) = SDL2.SetRenderDrawColor(
     renderer, Int64(c.r), Int64(c.g), Int64(c.b), Int64(c.a))
 
-topLeftPos(center::T, unitW, unitH) where {T<:AbstractCoord} = T(center.x - unitW/2., center.y + unitH/2.)
-function renderRectCentered(cam, renderer, center::AbstractCoord, unitW, unitH, color; outlineColor=nothing)
-    topLeft = topLeftPos(center, unitW, unitH)
-    renderRectTopLeft(cam, renderer, topLeft, unitW, unitH, color; outlineColor=outlineColor)
+# Convenience functions
+import Base: start, next, done
+start(a::Union{AbstractPos, AbstractDims}) = 1
+next(p::AbstractPos, i) = (if (i==1) return (p.x,2) elseif (i==2) return (p.y,3) else throw(DomainError()) end)
+next(p::AbstractDims, i) = (if (i==1) return (p.w,2) elseif (i==2) return (p.h,3) else throw(DomainError()) end)
+done(p::Union{AbstractPos, AbstractDims}, i) = (i == 3)
+
+topLeftPos(center::P, dims::D) where P<:AbstractPos{Coord} where D<:AbstractDims{Coord} where Coord<:ScreenCoords = P(center.x - dims.w/2., center.y - dims.h/2.)  # positive is down
+topLeftPos(center::P, dims::D) where P<:AbstractPos{Coord} where D<:AbstractDims{Coord} where Coord<:WorldCoords = P(center.x - dims.w/2., center.y + dims.h/2.)  # positive is up
+rectOrigin(center::P, dims::D) where P<:AbstractPos{C} where D<:AbstractDims{C} where {C} = P(center.x - dims.w/2., center.y - dims.h/2.)  # always minus
+function renderRectCentered(cam, renderer, center::AbstractPos{C}, dims::AbstractDims{C}, color; outlineColor=nothing) where C
+    origin = rectOrigin(center, dims)
+    renderRectFromOrigin(cam, renderer, origin, dims, color; outlineColor=outlineColor)
 end
-function renderRectTopLeft(cam, renderer, topLeft::AbstractCoord, unitW, unitH, color; outlineColor=nothing)
-    screenPos = toScreenPos(topLeft, cam)
-    rect = SDL2.Rect(screenPos.x, screenPos.y, screenScaleDims(unitW, unitH, cam)...)
+function renderRectFromOrigin(cam, renderer, origin::AbstractPos{C}, dims::AbstractDims{C}, color; outlineColor=nothing) where C
+    screenPos = toScreenPos(origin, cam)
+    rect = SDL2.Rect(screenPos.x, screenPos.y, toScreenPixelDims(dims, cam)...)
     if color != nothing
         SetRenderDrawColor(renderer, color)
         SDL2.RenderFillRect(renderer, Ref(rect) )
@@ -89,49 +151,47 @@ function renderRectTopLeft(cam, renderer, topLeft::AbstractCoord, unitW, unitH, 
     end
 end
 
-function renderProgressBar(percent, cam::Camera, renderer, center, w, h, color, bgColor, boxColor)
+function renderProgressBar(percent, cam::Camera, renderer, center::AbstractPos{C}, dims::D, color, bgColor, boxColor) where D<:AbstractDims{C} where C
     # bg
-    renderRectCentered(cam, renderer, center, w, h, bgColor)
+    renderRectCentered(cam, renderer, center, dims, bgColor)
     # health
-    topLeft = topLeftPos(center, w, h)
-    renderRectTopLeft(cam, renderer, topLeft, percent * w, h, color)
+    origin = rectOrigin(center, dims)
+    renderRectFromOrigin(cam, renderer, origin, D(round(percent * dims.w), dims.h), color)
     # outline
-    renderRectCentered(cam, renderer, center, w, h, nothing; outlineColor=boxColor)
+    renderRectCentered(cam, renderer, center, dims, nothing; outlineColor=boxColor)
 end
-function renderUnit(o::UnitTypes, playerColor, cam::Camera, renderer, unitW, unitH, color)
+function renderUnit(o::UnitTypes, playerColor, cam::Camera, renderer, dims::WorldDims, color)
     # First render the player color, then the unit color (for transparency)
-    renderRectCentered(cam, renderer, o.pos, unitW, unitH, playerColor)
-    renderRectCentered(cam, renderer, o.pos, unitW, unitH, color)
+    renderRectCentered(cam, renderer, o.pos, dims, playerColor)
+    renderRectCentered(cam, renderer, o.pos, dims, color)
 
     # render health bar
-    healthBarPos = WorldPos(o.pos.x, o.pos.y + unitH/2 + healthBarRenderOffset)
+    healthBarPos = toUIPixelPos(WorldPos(o.pos.x, o.pos.y + dims.h/2 + healthBarRenderOffset), cam)
     renderProgressBar(health_percent(o), cam, renderer, healthBarPos,
-          healthBarRenderWidth, healthBarRenderHeight, healthBarColor,
+          UIPixelDims(healthBarRenderWidth, healthBarRenderHeight), healthBarColor,
           kBackgroundColor, healthBarOutlineColor)
 end
 function render(o::Worker, playerColor, cam::Camera, renderer)
-    unitW, unitH = workerRenderWidth, workerRenderWidth
-    renderUnit(o, playerColor, cam, renderer, unitW, unitH, kWorkerColor)
+    dims = WorldDims(workerRenderWidth, workerRenderWidth)
+    renderUnit(o, playerColor, cam, renderer, dims, kWorkerColor)
 end
 function render(o::Fighter, playerColor, cam::Camera, renderer)
-    unitW, unitH = unitRenderWidth, unitRenderWidth
-    renderUnit(o, playerColor, cam, renderer, unitW, unitH, kFighterColor)
+    dims = WorldDims(unitRenderWidth, unitRenderWidth)
+    renderUnit(o, playerColor, cam, renderer, dims, kFighterColor)
 end
 
 abstract type AbstractButton end
 mutable struct MenuButton <: AbstractButton
     enabled::Bool
     pos::UIPixelPos
-    w::Int
-    h::Int
+    dims::UIPixelDims
     text::String
     callBack
 end
 mutable struct KeyButton <: AbstractButton
     enabled::Bool
     pos::UIPixelPos
-    w::Int
-    h::Int
+    dims::UIPixelDims
     text::String
     callBack
 end
@@ -156,9 +216,9 @@ function render(b::AbstractButton, cam::Camera, renderer, color, fontSize)
     if (!b.enabled)
          return
     end
-    topLeft = UIPixelPos(b.pos.x - b.w/2., b.pos.y - b.h/2.)
+    topLeft = rectOrigin(b.pos, b.dims)
     screenPos = toScreenPos(topLeft, cam)
-    rect = SDL2.Rect(screenPos.x, screenPos.y, screenScaleDims(b.w, b.h, cam)...)
+    rect = SDL2.Rect(screenPos..., toScreenPixelDims(b.dims, cam)...)
     x,y = Int[0], Int[0]
     SDL2.GetMouseState(pointer(x), pointer(y))
     if clickedButton == b
@@ -202,11 +262,12 @@ function render(b::CheckboxButton, cam::Camera, renderer)
 end
 
 function render_checkbox_square(b::AbstractButton, border, color, cam, renderer)
-    checkbox_radius = b.h/2. - border  # (checkbox is a square)
-    topLeft = topLeftPos(b.pos, b.w, b.h)
+    checkbox_radius = b.dims.h/2. - border  # (checkbox is a square)
+    topLeft = rectOrigin(b.pos, b.dims)
     topLeft = topLeft .+ border
     screenPos = toScreenPos(topLeft, cam)
-    rect = SDL2.Rect(screenPos.x, screenPos.y, screenScaleDims(checkbox_radius*2, checkbox_radius*2, cam)...)
+    screenDims = toScreenPixelDims(UIPixelDims(checkbox_radius*2, checkbox_radius*2), cam)
+    rect = SDL2.Rect(screenPos..., screenDims...)
     SetRenderDrawColor(renderer, color)
     SDL2.RenderFillRect(renderer, Ref(rect) )
 end
@@ -215,18 +276,17 @@ end
 
 fonts_cache = Dict()
 txt_cache = Dict()
-function sizeText(cam, txt, fontName, fontSize)
-    scale = worldScale(cam)
-    sizeText(scale, txt, loadFont(scale, fontName, fontSize))
+function sizeText(txt, fontName, fontSize)
+    sizeText(txt, loadFont(dpiScale(), fontName, fontSize))
 end
-function sizeText(scale, txt, font::Ptr{SDL2.TTF_Font})
+function sizeText(txt, font::Ptr{SDL2.TTF_Font})
    fw,fh = Cint[1], Cint[1]
    SDL2.TTF_SizeText(font, txt, pointer(fw), pointer(fh))
-   return fw[1]/scale,fh[1]/scale
+   return ScreenPixelDims(fw[1],fh[1])
 end
 function loadFont(scale, fontName, fontSize)
    fontSize = scale*fontSize
-   fontKey = (fontName, fontSize)
+   fontKey = (fontName, Cint(round(fontSize)))
    if haskey(fonts_cache, fontKey)
        font = fonts_cache[fontKey]
    else
@@ -237,7 +297,7 @@ function loadFont(scale, fontName, fontSize)
    return font
 end
 function createText(renderer, cam, txt, fontName, fontSize)
-   font = loadFont(worldScale(cam), fontName, fontSize)
+   font = loadFont(dpiScale(), fontName, fontSize)
    txtKey = (font, txt)
    if haskey(txt_cache, txtKey)
        tex = txt_cache[txtKey]
@@ -252,26 +312,28 @@ function createText(renderer, cam, txt, fontName, fontSize)
    SDL2.TTF_SizeText(font, txt, pointer(fw), pointer(fh))
    fw,fh = fw[1],fh[1]
 
-   return tex, fw, fh
+   return tex, ScreenPixelDims(fw, fh)
 end
 @enum TextAlign centered leftJustified rightJustified
 function renderText(renderer, cam::Camera, txt::String, pos::UIPixelPos
                     ; fontName = defaultFontName,
                      fontSize=defaultFontSize, align::TextAlign = centered)
-   tex, fw, fh = createText(renderer, cam, txt, fontName, fontSize)
-   renderTextSurface(renderer, cam, pos, tex, fw, fh, align)
+   tex, fDims = createText(renderer, cam, txt, fontName, fontSize)
+   renderTextSurface(renderer, cam, pos, tex, toUIPixelDims(fDims,cam), align)
 end
 
-function renderTextSurface(renderer, cam::Camera, pos::AbstractCoord,
-                           tex::Ptr{SDL2.Texture}, fw::Integer, fh::Integer, align::TextAlign)
+function renderTextSurface(renderer, cam::Camera, pos::AbstractPos{C},
+                           tex::Ptr{SDL2.Texture}, dims::AbstractDims{C}, align::TextAlign) where C <:AbstractCoordSystem
    screenPos = toScreenPos(pos, cam)
+   screenDims = toScreenPixelDims(dims, cam)
+   x,y, fw, fh = screenPos.x, screenPos.y, screenDims.w, screenDims.h
    renderPos = SDL2.Rect(0,0,0,0)
    if align == centered
-       renderPos = SDL2.Rect(Int(floor(screenPos.x-fw/2.)), Int(floor(screenPos.y-fh/2.)), fw,fh)
+       renderPos = SDL2.Rect(Int(floor(x-fw/2.)), Int(floor(y-fh/2.)), fw,fh)
    elseif align == leftJustified
-       renderPos = SDL2.Rect(Int(floor(screenPos.x)), Int(floor(screenPos.y-fh/2.)), fw,fh)
+       renderPos = SDL2.Rect(Int(floor(x)), Int(floor(y-fh/2.)), fw,fh)
    else # align == rightJustified
-       renderPos = SDL2.Rect(Int(floor(screenPos.x-fw)), Int(floor(screenPos.y-fh/2.)), fw,fh)
+       renderPos = SDL2.Rect(Int(floor(x-fw)), Int(floor(y-fh/2.)), fw,fh)
    end
    SDL2.RenderCopy(renderer, tex, C_NULL, pointer_from_objref(renderPos))
    #SDL2.DestroyTexture(tex)
@@ -283,7 +345,7 @@ function hcat_render_text(lines, renderer, cam, gap, pos::UIPixelPos;
     if fixedWidth != nothing
         widths = fill(fixedWidth,size(lines))
     else
-        widths = [sizeText(cam, line, fontName, fontSize)[1] for line in lines]
+        widths = [toUIPixelDims(sizeText(line, fontName, fontSize), cam).w for line in lines]
     end
     totalWidth = sum(widths) + gap*(numLines-1)
     runningWidth = 0
@@ -301,13 +363,13 @@ end
 
 #  ------- Image rendering ---------
 
-function render(t::Ptr{SDL2.Texture}, pos, cam::Camera, renderer; size = nothing)
+function render(t::Ptr{SDL2.Texture}, pos::AbstractPos{C}, cam::Camera, renderer; size::Union{Void, AbstractDims{C}} = nothing) where C<:AbstractCoordSystem
     if (t == C_NULL) return end
     pos = toScreenPos(pos, cam)
     if size != nothing
-        size = toScreenPos(size, cam)
-        w = size.x
-        h = size.y
+        size = toScreenPixelDims(size, cam)
+        w = size.w
+        h = size.h
     else
         w,h,access = Cint[1], Cint[1], Cint[1]
         format = Cuint[1]
