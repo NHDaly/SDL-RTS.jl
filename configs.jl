@@ -28,8 +28,34 @@ kCopyrightNotices = ["Copyright (c) 2018 @nhdalyMadeThis, LLC.",
 
 # Game Rendering
 kBackgroundColor = SDL2.Color(210,210,210,255)
-kBallColor = SDL2.Color(58, 95, 204, 255)
-kPaddleColor = SDL2.Color(203, 60, 51, 255)
+kFighterColor = SDL2.Color(0xff,0xff,0xff,0x22) # transparent
+kWorkerColor = SDL2.Color(0,0,0,0x55) # transparent
+kRenderColor(::Type{Fighter}) = kFighterColor
+kRenderColor(::Type{Worker}) = kWorkerColor
+
+kP1Color = SDL2.Color(58, 95, 224, 255)
+kP2Color = SDL2.Color(203, 60, 51, 255)
+
+kUIFontSize = 20
+kBuildOpsRenderHeight = kUIFontSize + 15
+
+# Unit Attributes
+
+kMaxHealth_Worker = 10
+kMaxHealth_Fighter = 20
+
+kAttackDamage_Worker = 1
+kAttackDamage_Fighter = 5
+
+kBuildTime_Worker = 5
+kBuildTime_Fighter = 10
+kBuildCost_Worker = 3
+kBuildCost_Fighter = 5
+
+kMoneyPersecPerworker = 1/3.0 # 1 every n secs
+
+
+
 
 # Game constants
 paddleSpeed = 1000
@@ -37,10 +63,21 @@ paddleTimeToMaxSpeed = 0.15
 paddleTimeToDecelerate = 0.05
 paddleAccel = paddleSpeed/paddleTimeToMaxSpeed
 paddleDeccel = paddleSpeed/paddleTimeToDecelerate
-ballSpeed = 350
-ballWidth=10
+workerSpeed = 350
+
+unitRenderWidth=10
+workerRenderWidth=20
+healthBarRenderOffset = 2
+healthBarRenderWidth = 18; healthBarRenderHeight = 2.5
+healthBarColor = SDL2.Color(0,210,0,255)
+healthBarOutlineColor = SDL2.Color(0x99,0x99,0x99,0xff)
 
 winningScore = 11
 
+
 # meta config
 config_reload_time_s = 1  # seconds
+
+# Code Testing
+#set_health!(p1.units.workers[2], 5)
+#println(p1.units.workers[2].health)

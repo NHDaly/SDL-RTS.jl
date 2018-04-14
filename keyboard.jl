@@ -1,8 +1,9 @@
-# This file contains the code to allow setting & changing key configs. 
+# This file contains the code to allow setting & changing key configs.
 
 keySettingsDefault() = Dict([
-    :keyALeft   => SDL2.SDLK_a
-    :keyARight  => SDL2.SDLK_d
+    :keyWorker   => SDL2.SDLK_w
+    :keyFighter  => SDL2.SDLK_f
+    :keyAttack  => SDL2.SDLK_a
     :keyBLeft   => SDL2.SDLK_LEFT
     :keyBRight  => SDL2.SDLK_RIGHT
   ])
@@ -149,8 +150,8 @@ end
 
 function loadKeySettings(prefs::String)
     p_vals = map((v)->parse(UInt32,v), split(prefs))
-    tryChangingKeySettingButton(:keyALeft, p_vals[1])
-    tryChangingKeySettingButton(:keyARight, p_vals[2])
+    tryChangingKeySettingButton(:keyWorker, p_vals[1])
+    tryChangingKeySettingButton(:keyFighter, p_vals[2])
     tryChangingKeySettingButton(:keyBLeft, p_vals[3])
     tryChangingKeySettingButton(:keyBRight, p_vals[4])
 end

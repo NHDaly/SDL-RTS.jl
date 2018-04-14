@@ -21,10 +21,11 @@ const assets = "assets" # directory path for game assets relative to pwd().
 
 include("config.jl")
 include("timing.jl")
-include("objects.jl")
+include("player.jl")
 include("display.jl")
 include("keyboard.jl")
 include("menu.jl")
+reloadConfigsFiles("game_configs.jl")
 
 const kGAME_NAME = "Paddle Battle"
 const kSAFE_GAME_NAME = "PaddleBattle"
@@ -123,9 +124,8 @@ end
 
 # Game State Globals
 renderer = win = nothing
-paddleA = Paddle(WorldPos(0,200), Vector2D(0,0), 200)
-paddleB = Paddle(WorldPos(0,-200), Vector2D(0,0), 200)
-ball = Ball(WorldPos(0,0), Vector2D(0,-ballSpeed))
+p1 = Player()
+p2 = Player()
 cam = nothing
 scoreA = 0
 scoreB = 0
@@ -161,10 +161,10 @@ function runSceneGameLoop(scene, renderer, win, inSceneVar::Ref{Bool})
         # Don't run if game is paused by system (resizing, lost focus, etc)
         while window_paused[] != 0  # Note that this will be fixed by windowEventWatcher
             _ = pollEvent!()
-            sleep(0.1)
+            sleep(0.5)  # maybe increase this?
         end
         # Reload config for debug
-        if (debug) reloadConfigsFile() end
+        if (debug) reloadConfigsFiles() end
 
         # Handle Events
         hadEvents = true
@@ -260,55 +260,51 @@ end
 
 
 function render(scene::GameScene, renderer, win)
-    global ball,scoreA,scoreB,last_10_frame_times,paused,playing
+    global scoreA,scoreB,last_10_frame_times,paused,playing
 
-    color = kBackgroundColor
-    SDL2.SetRenderDrawColor(renderer, Int64(color.r), Int64(color.g), Int64(color.b), Int64(color.a))
+    SetRenderDrawColor(renderer, kBackgroundColor)
     SDL2.RenderClear(renderer)
 
     renderScore(renderer)
-    render(paddleA, cam, renderer)
-    render(paddleB, cam, renderer)
 
-    render(ball, cam, renderer)
+    for u in p1.units.units
+        render(u, kP1Color, cam, renderer)
+    end
+    for u in p2.units.units
+        render(u, kP2Color, cam, renderer)
+    end
+
+    # UI text at bottom
+    renderText(renderer, cam, "W: Buy worker   F: Buy fighter  A: Attack (randomly)",
+               UIPixelPos(screenCenterX(), winHeight[] - kUIFontSize)
+               ; fontSize=kUIFontSize)
+
+    # BuildOp UI
+    buildOpsHeight = kBuildOpsRenderHeight
+    for b in p1.build_ops
+        pos = screenToWorld(toScreenPos(UIPixelPos(screenCenterX(), buildOpsHeight),cam),cam)
+        percent = time_remaining(b) / b.buildLength
+        renderProgressBar(percent, cam, renderer, pos,
+                200, 10, blendAlphaColors(kP1Color, kRenderColor(b.unitType)),
+                kBackgroundColor, healthBarOutlineColor)
+        buildOpsHeight += 10
+    end
+
 end
 
 function renderScore(renderer)
     # Size the text with a single-digit score so it doesn't move when score hits double-digits.
     txtW,_ = sizeText(cam, "Player 1: 0", defaultFontName, defaultFontSize)
-    hcat_render_text(["Player 1: $scoreA","Player 2: $scoreB"], renderer, cam,
+    hcat_render_text(["Player 1: $(floor(p1.money))","Player 2: $(floor(p2.money))"], renderer, cam,
          100, UIPixelPos(screenCenterX(), 20)
          ; fixedWidth=txtW)
 end
 
 function performUpdates!(scene::GameScene, dt)
-    global ball, paddleA, paddleB, scoreB, scoreA
-    #if didCollide(ball, paddleA, dt);
-    #     ball.pos = ball.pos - ball.vel  # undo update
-    #     collide!(ball, paddleA);
-    #end
-    #if didCollide(ball, paddleB, dt);
-    #     ball.pos = ball.pos - ball.vel  # undo update
-    #     collide!(ball, paddleB);
-    #end
-    if willCollide(ball, paddleA, dt); collide!(ball, paddleA); end
-    if willCollide(ball, paddleB, dt); collide!(ball, paddleB); end
-    if (willCollide(ball, paddleA,dt) || willCollide(ball, paddleB,dt))
-        # STUCK GOING TOO FAST
-        slowed_dt = dt
-        while (willCollide(ball, paddleA, slowed_dt) || willCollide(ball, paddleB, slowed_dt))
-            slowed_dt *= .1
-        end
-        update!(ball, slowed_dt)
-    else
-        update!(ball, dt)
-    end
-    update!(paddleA, paddleAKeys, dt)
-    update!(paddleB, paddleBKeys, dt)
-
-    if (scoreA >= winningScore)  enterWinnerGameLoop(renderer,win, "Player 1")
-    elseif (scoreB >= winningScore)  enterWinnerGameLoop(renderer,win, "Player 2")
-    end
+    global p1, p2
+    reloadConfigsFiles(["configs.jl", "game_configs.jl"])
+    update!(p1, dt)
+    update!(p2, dt)
 end
 
 function enterWinnerGameLoop(renderer,win, winnerName)
@@ -317,10 +313,6 @@ function enterWinnerGameLoop(renderer,win, winnerName)
     buttons[:bNewContinue].text = "New Game"
     global paused,game_started; paused[] = true; game_started[] = false;
 
-    # Move the ball off-screen here so it doesn't show up on the winning
-    # player screen.
-    ball.pos = WorldPos(winWidth[] + 20, 0);
-
     scene = PauseScene("$winnerName wins!!", "")
     runSceneGameLoop(scene, renderer, win, paused)
 
@@ -328,13 +320,17 @@ function enterWinnerGameLoop(renderer,win, winnerName)
     resetGame()
 end
 function resetGame()
-    global scoreA,scoreB
+    global scoreA,scoreB, p1, p2
     scoreB = scoreA = 0
-    ball.pos = WorldPos(0,0)
-    ball.vel = Vector2D(0,rand([ballSpeed,-ballSpeed]))
+    p1 = Player()
+    add_unit!(p1.units, Worker(p1.units, WorldPos(-250,50)))
+    add_unit!(p1.units, Fighter(p1.units, WorldPos(-200,200)))
+    add_unit!(p1.units, Fighter(p1.units, WorldPos(-200,-200)))
 
-    paddleA.pos = WorldPos(0,200)
-    paddleB.pos = WorldPos(0,-200)
+    p2 = Player()
+    add_unit!(p2.units, Worker(p2.units, WorldPos(250,50)))
+    add_unit!(p2.units, Fighter(p2.units, WorldPos(200,200)))
+    add_unit!(p2.units, Fighter(p2.units, WorldPos(200,-200)))
 end
 
 mutable struct KeyControls
@@ -350,19 +346,38 @@ mutable struct GameControls
 end
 const gameControls = GameControls()
 
+randScreenPos(cam) = ScreenPixelPos(rand(0:cam.w[]), rand(0:cam.h[]))
+randWorldPosOnScreen(cam) = screenToWorld(randScreenPos(cam), cam)
 getKeySym(e) = bitcat(UInt32, e[24:-1:21])
 function handleKeyPress(e,t)
     global paused,debugText
     keySym = getKeySym(e)
     keyDown = (t == SDL2.KEYDOWN)
-    if (keySym == keySettings[:keyALeft])
-        paddleAKeys.leftDown = keyDown
-    elseif (keySym == keySettings[:keyARight])
-        paddleAKeys.rightDown = keyDown
-    elseif (keySym == keySettings[:keyBLeft])
-        paddleBKeys.leftDown = keyDown
-    elseif (keySym == keySettings[:keyBRight])
-        paddleBKeys.rightDown = keyDown
+    if (keySym == keySettings[:keyWorker])
+        randRange = 100
+        randWorkerPos = rand(p1.units.workers).pos
+        randPos = WorldPos(rand(-randRange:randRange) + randWorkerPos.x,
+                           rand(-randRange:randRange) + randWorkerPos.y)
+        purchase_worker!(p1, randPos)
+    elseif (keySym == keySettings[:keyFighter])
+        randRange = 300
+        randWorkerPos = rand(p1.units.workers).pos
+        randPos = WorldPos(rand(-randRange:randRange) + randWorkerPos.x,
+                           rand(-randRange:randRange) + randWorkerPos.y)
+        purchase_fighter!(p1, randPos)
+    elseif (keySym == keySettings[:keyAttack])
+        num_attacked = 0
+        for f in p1.units.fighters
+            if isempty(p2.units.units)
+                break
+            end
+            attack!(rand(p2.units.units), f)
+            num_attacked += 1
+        end
+        remaining_fighters = length(p1.units.fighters) - num_attacked
+        while length(p1.units.fighters) > remaining_fighters
+            destroy_unit!(p1.units.fighters[1])
+        end
     elseif (keySym == SDL2.SDLK_ESCAPE)
         if (!gameControls.escapeDown && keyDown)
             if game_started[]  # Escape shouldn't start the game.
@@ -511,8 +526,8 @@ Base.@ccallable function julia_main(ARGS::Vector{String})::Cint
     try
         SDL2.init()
         change_dir_if_bundle()
-        init_prefspath()
-        load_prefs_backup()
+        #init_prefspath()
+        #load_prefs_backup()
         load_audio_files()
         music = SDL2.Mix_LoadMUS( "$assets/music.wav" );
         win,renderer = makeWinRenderer()

@@ -1,6 +1,16 @@
 # Defines structus and functions relating to display.
 # Defines `render` for all game objects.
 
+function blendAlphaColors(x::SDL2.Color, y::SDL2.Color)
+    xAlphaPercent = x.a / 255
+    yAlphaPercent = y.a / 255
+    r = round(x.r*xAlphaPercent + (y.r - Int32(x.r) * xAlphaPercent) * yAlphaPercent)
+    g = round(x.g*xAlphaPercent + (y.g - Int32(x.g) * xAlphaPercent) * yAlphaPercent)
+    b = round(x.b*xAlphaPercent + (y.b - Int32(x.b) * xAlphaPercent) * yAlphaPercent)
+    a = round(x.a + (1-xAlphaPercent)*yAlphaPercent * 255)
+    SDL2.Color(r,g,b,a)
+end
+
 struct ScreenPixelPos  # 0,0 == top-left
     x::Int
     y::Int
@@ -37,34 +47,67 @@ function toScreenPos(p::UIPixelPos, c::Camera)
     scale = worldScale(c)
     ScreenPixelPos(floor(scale*p.x), floor(scale*p.y))
 end
+function screenToWorld(p::ScreenPixelPos, c::Camera)
+    scale = worldScale(c)
+    WorldPos(floor(p.x - c.w[]/2.)/scale, floor(p.y - c.h[]/2.)/scale)
+end
 function screenToUI(p::ScreenPixelPos, c::Camera)
     scale = worldScale(c)
     ScreenPixelPos(floor(p.x/scale), floor(p.y/scale))
 end
 function screenScaleDims(w,h,c::Camera)
     scale = worldScale(c)
-    scale*w, scale*h
+    round(scale*w), round(scale*h) # round to whole pixels
 end
 
-function render(o::Ball, cam::Camera, renderer)
-    const ballW = ballWidth; const ballH = ballWidth;
-    topLeft = WorldPos(o.pos.x - ballW/2., o.pos.y + ballH/2.)
-    screenPos = toScreenPos(topLeft, cam)
-    rect = SDL2.Rect(screenPos.x, screenPos.y, screenScaleDims(ballW, ballH, cam)...)
-    color = kBallColor
-    SDL2.SetRenderDrawColor(renderer, Int64(color.r), Int64(color.g), Int64(color.b), Int64(color.a))
-    SDL2.RenderFillRect(renderer, Ref(rect) )
+SetRenderDrawColor(renderer::Ptr{SDL2.Renderer}, c::SDL2.Color) = SDL2.SetRenderDrawColor(
+    renderer, Int64(c.r), Int64(c.g), Int64(c.b), Int64(c.a))
+
+topLeftPos(center::WorldPos, unitW, unitH) = WorldPos(center.x - unitW/2., center.y + unitH/2.)
+function renderRectCentered(cam, renderer, center::WorldPos, unitW, unitH, color; outlineColor=nothing)
+    topLeft = topLeftPos(center, unitW, unitH)
+    renderRectTopLeft(cam, renderer, topLeft, unitW, unitH, color; outlineColor=outlineColor)
 end
-function render(o::Paddle, cam::Camera, renderer)
-    const paddleW = o.length; const paddleH = 15;
-    # Move up/down so the edge matches the "center" of paddle.
-    edgeShift = if o.pos.y > 0; paddleH/2.; else -paddleH/2.; end
-    topLeft = WorldPos(o.pos.x - paddleW/2., o.pos.y + paddleH/2. + edgeShift)
+function renderRectTopLeft(cam, renderer, topLeft::WorldPos, unitW, unitH, color; outlineColor=nothing)
     screenPos = toScreenPos(topLeft, cam)
-    rect = SDL2.Rect(screenPos.x, screenPos.y, screenScaleDims(paddleW, paddleH, cam)...)
-    color = kPaddleColor
-    SDL2.SetRenderDrawColor(renderer, Int64(color.r), Int64(color.g), Int64(color.b), Int64(color.a))
-    SDL2.RenderFillRect(renderer, Ref(rect) )
+    rect = SDL2.Rect(screenPos.x, screenPos.y, screenScaleDims(unitW, unitH, cam)...)
+    if color != nothing
+        SetRenderDrawColor(renderer, color)
+        SDL2.RenderFillRect(renderer, Ref(rect) )
+    end
+    if outlineColor != nothing
+        SetRenderDrawColor(renderer, outlineColor)
+        SDL2.RenderDrawRect(renderer, Ref(rect) )
+    end
+end
+
+function renderProgressBar(percent, cam::Camera, renderer, center, w, h, color, bgColor, boxColor)
+    # bg
+    renderRectCentered(cam, renderer, center, w, h, bgColor)
+    # health
+    topLeft = topLeftPos(center, w, h)
+    renderRectTopLeft(cam, renderer, topLeft, percent * w, h, color)
+    # outline
+    renderRectCentered(cam, renderer, center, w, h, nothing; outlineColor=boxColor)
+end
+function renderUnit(o::UnitTypes, playerColor, cam::Camera, renderer, unitW, unitH, color)
+    # First render the player color, then the unit color (for transparency)
+    renderRectCentered(cam, renderer, o.pos, unitW, unitH, playerColor)
+    renderRectCentered(cam, renderer, o.pos, unitW, unitH, color)
+
+    # render health bar
+    healthBarPos = WorldPos(o.pos.x, o.pos.y + unitH/2 + healthBarRenderOffset)
+    renderProgressBar(health_percent(o), cam, renderer, healthBarPos,
+          healthBarRenderWidth, healthBarRenderHeight, healthBarColor,
+          kBackgroundColor, healthBarOutlineColor)
+end
+function render(o::Worker, playerColor, cam::Camera, renderer)
+    unitW, unitH = workerRenderWidth, workerRenderWidth
+    renderUnit(o, playerColor, cam, renderer, unitW, unitH, kWorkerColor)
+end
+function render(o::Fighter, playerColor, cam::Camera, renderer)
+    unitW, unitH = unitRenderWidth, unitRenderWidth
+    renderUnit(o, playerColor, cam, renderer, unitW, unitH, kFighterColor)
 end
 
 abstract type AbstractButton end
@@ -121,7 +164,7 @@ function render(b::AbstractButton, cam::Camera, renderer, color, fontSize)
             color = color - 10
         end
     end
-    SDL2.SetRenderDrawColor(renderer, Int64(color.r), Int64(color.g), Int64(color.b), 255)
+    SetRenderDrawColor(renderer, color)
     SDL2.RenderFillRect(renderer, Ref(rect) )
     renderText(renderer, cam, b.text, b.pos; fontSize = fontSize)
 end
@@ -156,7 +199,7 @@ function render_checkbox_square(b::AbstractButton, border, color, cam, renderer)
     topLeft = topLeft .+ border
     screenPos = toScreenPos(topLeft, cam)
     rect = SDL2.Rect(screenPos.x, screenPos.y, screenScaleDims(checkbox_radius*2, checkbox_radius*2, cam)...)
-    SDL2.SetRenderDrawColor(renderer, Int64(color.r), Int64(color.g), Int64(color.b), 255)
+    SetRenderDrawColor(renderer, color)
     SDL2.RenderFillRect(renderer, Ref(rect) )
 end
 

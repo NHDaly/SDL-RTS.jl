@@ -23,10 +23,10 @@ buttons = Dict([
 
      # Key controls buttons
     :keyALeft =>
-        KeyButton(true, UIPixelPos(0,0), 120, 20, keyDisplayNames[keySettings[:keyALeft]],
+        KeyButton(true, UIPixelPos(0,0), 120, 20, keyDisplayNames[keySettings[:keyWorker]],
                ()->(tryChangingKeySettingButton(:keyALeft)))
     :keyARight =>
-        KeyButton(true, UIPixelPos(0,0), 120, 20, keyDisplayNames[keySettings[:keyARight]],
+        KeyButton(true, UIPixelPos(0,0), 120, 20, keyDisplayNames[keySettings[:keyFighter]],
                ()->(tryChangingKeySettingButton(:keyARight)))
     :keyBLeft =>
         KeyButton(true, UIPixelPos(0,0), 120, 20, keyDisplayNames[keySettings[:keyBLeft]],
