@@ -76,12 +76,12 @@ screenCenterX() = winWidth[]/2
 screenCenterY() = winHeight[]/2
 screenOffsetFromCenter(x::Int,y::Int) = UIPixelPos(screenCenterX()+x,screenCenterY()+y)
 
-worldScale(c::Camera) = cam.w[] / winWidth[];
 dpiScale() = winWidth_highDPI[] / winWidth[];
+worldScale(c::Camera) = dpiScale() * (winWidth[] / cam.w[]);
 function toScreenPos(p::WorldPos, c::Camera)
     scale = worldScale(c)
     ScreenPixelPos(
-        round(c.w[]/2. + scale*p.x), round(c.h[]/2. - scale*p.y))
+        round(winWidth_highDPI[]/2. + scale*p.x), round(winHeight_highDPI[]/2. - scale*p.y))
 end
 function toScreenPos(p::UIPixelPos, c::Camera)
     scale = dpiScale()

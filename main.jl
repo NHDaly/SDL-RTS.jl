@@ -76,7 +76,7 @@ function windowEventWatcher(data_ptr::Ptr{Void}, event_ptr::Ptr{SDL2.Event})::Ci
                 w,h,w_highDPI,h_highDPI = getWindowSize(eventWin)
                 winWidth[], winHeight[] = w, h
                 winWidth_highDPI[], winHeight_highDPI[] = w_highDPI, h_highDPI
-                cam.w[], cam.h[] = winWidth_highDPI[], winHeight_highDPI[]
+                cam.w[], cam.h[] = winWidth[], winHeight[]
                 recenterButtons!()
             end
             # Note: render after every resize event. I tried limiting it with a
@@ -266,8 +266,10 @@ end
 function handleMouseScroll(e)
     my = bitcat(SDL2.Sint32, e[24:-1:21])
 
-    cam.w[] += my * kZoomRate
-    cam.h[] += my * kZoomRate
+    # zoom
+    println("$my")
+    cam.w[] -= my * kZoomRate  # If scrolling up, zoom in (shrink camera).
+    cam.h[] -= my * kZoomRate  # (positive `my` is scrolling up)
 end
 
 unitRenderColor(::Type{Fighter}) = kFighterColor
@@ -342,7 +344,11 @@ function enterWinnerGameLoop(renderer,win, winnerName)
     resetGame()
 end
 function resetGame()
-    global scoreA,scoreB, p1, p2
+    global scoreA,scoreB, p1, p2, cam
+    cam = Camera(WorldPos(0,0),
+             Threads.Atomic{Int32}(winWidth[]),
+             Threads.Atomic{Int32}(winHeight[]))
+
     scoreB = scoreA = 0
     p1 = Player()
     add_unit!(p1.units, Worker(p1.units, WorldPos(-250,50)))
@@ -368,7 +374,7 @@ mutable struct GameControls
 end
 const gameControls = GameControls()
 
-randScreenPos(cam) = ScreenPixelPos(rand(0:cam.w[]), rand(0:cam.h[]))
+randScreenPos(cam) = UIPixelPos(rand(0:winWidth[]), rand(0:winHeight[]))
 randWorldPosOnScreen(cam) = toWorldPos(randScreenPos(cam), cam)
 getKeySym(e) = bitcat(UInt32, e[24:-1:21])
 function handleKeyPress(e,t)
@@ -469,7 +475,7 @@ function render(scene::PauseScene, renderer, win)
         jlLogoIcon = SDL2.CreateTextureFromSurface(renderer, jlLogo_surface) # Will be C_NULL on failure.
         SDL2.FreeSurface(jlLogo_surface)
     end
-    screenRect = SDL2.Rect(0,0, cam.w[], cam.h[])
+    screenRect = SDL2.Rect(0,0, winWidth[], winHeight[])
     # First render the scene under the pause menu so it looks like the pause is over it.
     if (length(sceneStack) > 1) render(sceneStack[end-1], renderer, win) end
     color = kBackgroundColor
@@ -576,9 +582,6 @@ Base.@ccallable function julia_main(ARGS::Vector{String})::Cint
         load_audio_files()
         music = SDL2.Mix_LoadMUS( "$assets/music.wav" );
         win,renderer = makeWinRenderer()
-        cam = Camera(WorldPos(0,0),
-                     Threads.Atomic{Int32}(winWidth_highDPI[]),
-                     Threads.Atomic{Int32}(winHeight_highDPI[]))
         global paused,game_started; paused[] = true; game_started[] = false;
         # Warm up
         for i in 1:3
