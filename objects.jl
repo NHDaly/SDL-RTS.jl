@@ -1,12 +1,13 @@
 # Objects in the game and their supporting functions (update!, collide!, ...)
 
-# Abstract coordinate system for the game. can convert between different systems.
-abstract type AbstractCoordSystem end
-abstract type AbstractPos{CoordType<:AbstractCoordSystem} end
-abstract type AbstractDims{CoordType<:AbstractCoordSystem} end
+# Abstract positions and dimensions in arbitrary coordinate systems for the
+# game. Concrete Pos and Dims must always be used with the same CoordType.
+# Can convert between them (possibly in reference to the Camera).
+abstract type AbstractPos{CoordType} end
+abstract type AbstractDims{CoordType} end
 
 """ WorldCoords are the absolute space of the game, independent of camera. """
-struct WorldCoords <: AbstractCoordSystem end
+struct WorldCoords end
 
 """
     WorldPos(5.0,-200.0)

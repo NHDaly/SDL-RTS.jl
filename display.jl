@@ -15,7 +15,7 @@ end
 Importantly, these are "upside-down" from WorldCoords: (0,0) is top-left, and
 higher numbers go down and to the right.
 """
-abstract type ScreenCoords <: AbstractCoordSystem end
+abstract type ScreenCoords end
 
 """ ScreenPixelCoords are absolute space on screen, in actual pixels. """
 struct ScreenPixelCoords <: ScreenCoords end
@@ -124,7 +124,7 @@ toUIPixelDims(dims::UIPixelDims,c::Camera) = dims
 SetRenderDrawColor(renderer::Ptr{SDL2.Renderer}, c::SDL2.Color) = SDL2.SetRenderDrawColor(
     renderer, Int64(c.r), Int64(c.g), Int64(c.b), Int64(c.a))
 
-# Convenience functions
+# Convenience functions to allow `WorldPos(x,y)...` to become `x,y`
 import Base: start, next, done
 start(a::Union{AbstractPos, AbstractDims}) = 1
 next(p::AbstractPos, i) = (if (i==1) return (p.x,2) elseif (i==2) return (p.y,3) else throw(DomainError()) end)
@@ -328,7 +328,7 @@ function renderText(renderer, cam::Camera, txt::String, pos::UIPixelPos
 end
 
 function renderTextSurface(renderer, cam::Camera, pos::AbstractPos{C},
-                           tex::Ptr{SDL2.Texture}, dims::AbstractDims{C}, align::TextAlign) where C <:AbstractCoordSystem
+                           tex::Ptr{SDL2.Texture}, dims::AbstractDims{C}, align::TextAlign) where C
    screenPos = toScreenPos(pos, cam)
    screenDims = toScreenPixelDims(dims, cam)
    x,y, fw, fh = screenPos.x, screenPos.y, screenDims.w, screenDims.h
@@ -368,7 +368,7 @@ end
 
 #  ------- Image rendering ---------
 
-function render(t::Ptr{SDL2.Texture}, pos::AbstractPos{C}, cam::Camera, renderer; size::Union{Void, AbstractDims{C}} = nothing) where C<:AbstractCoordSystem
+function render(t::Ptr{SDL2.Texture}, pos::AbstractPos{C}, cam::Camera, renderer; size::Union{Void, AbstractDims{C}} = nothing) where C
     if (t == C_NULL) return end
     pos = toScreenPos(pos, cam)
     if size != nothing
