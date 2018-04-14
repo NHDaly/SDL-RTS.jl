@@ -11,12 +11,12 @@ function blendAlphaColors(x::SDL2.Color, y::SDL2.Color)
     SDL2.Color(r,g,b,a)
 end
 
-struct ScreenPixelPos  # 0,0 == top-left
+struct ScreenPixelPos <: AbstractCoord  # 0,0 == top-left
     x::Int
     y::Int
 end
 ScreenPixelPos(x::Number, y::Number) = ScreenPixelPos(convert.(Int, floor.((x,y)))...)
-struct UIPixelPos  # 0,0 == top-left (Same as ScreenPixelPos but not scaled.)
+struct UIPixelPos <: AbstractCoord  # 0,0 == top-left (Same as ScreenPixelPos but not scaled.)
     x::Int
     y::Int
 end
@@ -47,6 +47,7 @@ function toScreenPos(p::UIPixelPos, c::Camera)
     scale = worldScale(c)
     ScreenPixelPos(floor(scale*p.x), floor(scale*p.y))
 end
+toScreenPos(p::ScreenPixelPos, c::Camera) = p
 function screenToWorld(p::ScreenPixelPos, c::Camera)
     scale = worldScale(c)
     WorldPos(floor(p.x - c.w[]/2.)/scale, floor(p.y - c.h[]/2.)/scale)
@@ -63,12 +64,12 @@ end
 SetRenderDrawColor(renderer::Ptr{SDL2.Renderer}, c::SDL2.Color) = SDL2.SetRenderDrawColor(
     renderer, Int64(c.r), Int64(c.g), Int64(c.b), Int64(c.a))
 
-topLeftPos(center::WorldPos, unitW, unitH) = WorldPos(center.x - unitW/2., center.y + unitH/2.)
-function renderRectCentered(cam, renderer, center::WorldPos, unitW, unitH, color; outlineColor=nothing)
+topLeftPos(center::T, unitW, unitH) where {T<:AbstractCoord} = T(center.x - unitW/2., center.y + unitH/2.)
+function renderRectCentered(cam, renderer, center::AbstractCoord, unitW, unitH, color; outlineColor=nothing)
     topLeft = topLeftPos(center, unitW, unitH)
     renderRectTopLeft(cam, renderer, topLeft, unitW, unitH, color; outlineColor=outlineColor)
 end
-function renderRectTopLeft(cam, renderer, topLeft::WorldPos, unitW, unitH, color; outlineColor=nothing)
+function renderRectTopLeft(cam, renderer, topLeft::AbstractCoord, unitW, unitH, color; outlineColor=nothing)
     screenPos = toScreenPos(topLeft, cam)
     rect = SDL2.Rect(screenPos.x, screenPos.y, screenScaleDims(unitW, unitH, cam)...)
     if color != nothing
@@ -195,7 +196,7 @@ end
 
 function render_checkbox_square(b::AbstractButton, border, color, cam, renderer)
     checkbox_radius = b.h/2. - border  # (checkbox is a square)
-    topLeft = UIPixelPos(b.pos.x - b.w/2., b.pos.y - b.h/2.)
+    topLeft = topLeftPos(b.pos, b.w, b.h)
     topLeft = topLeft .+ border
     screenPos = toScreenPos(topLeft, cam)
     rect = SDL2.Rect(screenPos.x, screenPos.y, screenScaleDims(checkbox_radius*2, checkbox_radius*2, cam)...)
@@ -254,7 +255,7 @@ function renderText(renderer, cam::Camera, txt::String, pos::UIPixelPos
    renderTextSurface(renderer, cam, pos, tex, fw, fh, align)
 end
 
-function renderTextSurface(renderer, cam::Camera, pos::UIPixelPos,
+function renderTextSurface(renderer, cam::Camera, pos::AbstractCoord,
                            tex::Ptr{SDL2.Texture}, fw::Integer, fh::Integer, align::TextAlign)
    screenPos = toScreenPos(pos, cam)
    renderPos = SDL2.Rect(0,0,0,0)

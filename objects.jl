@@ -1,11 +1,14 @@
 # Objects in the game and their supporting functions (update!, collide!, ...)
 
+# Coordinates for the game. can convert between eachother.
+abstract type AbstractCoord end
+
 """
     WorldPos(5.0,-200.0)
 x,y float coordinates in the game world (not necessarily the same as pixel
 coordinates on the screen).
 """
-struct WorldPos  # 0,0 == middle
+struct WorldPos <: AbstractCoord  # 0,0 == middle
     x::Float64
     y::Float64
 end

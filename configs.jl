@@ -30,8 +30,6 @@ kCopyrightNotices = ["Copyright (c) 2018 @nhdalyMadeThis, LLC.",
 kBackgroundColor = SDL2.Color(210,210,210,255)
 kFighterColor = SDL2.Color(0xff,0xff,0xff,0x22) # transparent
 kWorkerColor = SDL2.Color(0,0,0,0x55) # transparent
-kRenderColor(::Type{Fighter}) = kFighterColor
-kRenderColor(::Type{Worker}) = kWorkerColor
 
 kP1Color = SDL2.Color(58, 95, 224, 255)
 kP2Color = SDL2.Color(203, 60, 51, 255)
@@ -53,9 +51,6 @@ kBuildCost_Worker = 3
 kBuildCost_Fighter = 5
 
 kMoneyPersecPerworker = 1/3.0 # 1 every n secs
-
-
-
 
 # Game constants
 paddleSpeed = 1000

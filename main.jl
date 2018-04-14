@@ -20,12 +20,13 @@ end
 const assets = "assets" # directory path for game assets relative to pwd().
 
 include("config.jl")
+include("configs.jl")
 include("timing.jl")
 include("player.jl")
 include("display.jl")
 include("keyboard.jl")
 include("menu.jl")
-reloadConfigsFiles("game_configs.jl")
+include("game_configs.jl")
 
 const kGAME_NAME = "Paddle Battle"
 const kSAFE_GAME_NAME = "PaddleBattle"
