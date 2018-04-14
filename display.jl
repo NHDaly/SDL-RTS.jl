@@ -65,9 +65,9 @@ end
 
 mutable struct Camera
     pos::WorldPos
-    # Note, these are in ScreenPixelDims size.
-    w::Threads.Atomic{Int32}   # Note: These are Atomics, since they can be modified by the
-    h::Threads.Atomic{Int32}   # windowEventWatcher callback, which can run in another thread!
+    # Note, these are in WorldPos size.
+    w::Threads.Atomic{Float32}   # Note: These are Atomics, since they can be modified by the
+    h::Threads.Atomic{Float32}   # windowEventWatcher callback, which can run in another thread!
 end
 Camera() = Camera(WorldPos(0,0),100,100)
 
@@ -81,7 +81,7 @@ worldScale(c::Camera) = dpiScale() * (winWidth[] / cam.w[]);
 function toScreenPos(p::WorldPos, c::Camera)
     scale = worldScale(c)
     ScreenPixelPos(
-        round(winWidth_highDPI[]/2. + scale*p.x), round(winHeight_highDPI[]/2. - scale*p.y))
+        round(winWidth_highDPI[]/2. + scale*(p.x-c.pos.x)), round(winHeight_highDPI[]/2. - scale*(p.y-cam.pos.y)))
 end
 function toScreenPos(p::UIPixelPos, c::Camera)
     scale = dpiScale()
@@ -108,7 +108,7 @@ function toScreenPixelDims(dims::UIPixelDims,c::Camera)
     ScreenPixelDims(round(scale*dims.w), round(scale*dims.h))
 end
 function toScreenPixelDims(dims::WorldDims,c::Camera)
-    scale = worldScale(c)  # TODO: This needs to be changed
+    scale = worldScale(c)
     ScreenPixelDims(round(scale*dims.w), round(scale*dims.h))
 end
 toScreenPixelDims(dims::ScreenPixelDims,c::Camera) = dims
@@ -134,8 +134,13 @@ done(p::Union{AbstractPos, AbstractDims}, i) = (i == 3)
 topLeftPos(center::P, dims::D) where P<:AbstractPos{Coord} where D<:AbstractDims{Coord} where Coord<:ScreenCoords = P(center.x - dims.w/2., center.y - dims.h/2.)  # positive is down
 topLeftPos(center::P, dims::D) where P<:AbstractPos{Coord} where D<:AbstractDims{Coord} where Coord<:WorldCoords = P(center.x - dims.w/2., center.y + dims.h/2.)  # positive is up
 rectOrigin(center::P, dims::D) where P<:AbstractPos{C} where D<:AbstractDims{C} where {C} = P(center.x - dims.w/2., center.y - dims.h/2.)  # always minus
+
+#makeSDL2RectFromOrigin(p::ScreenPixelPos, d::ScreenPixelDims) = SDL2.Rect(p..., d...)
+#makeSDL2RectFromCenter(p::ScreenPixelPos, d::ScreenPixelDims) = SDL2.Rect(rectOrigin(p,d)..., d...)
+#makeSDL2RectFromOrigin(p,d) = makeSDL2RectFromCenter(toScreenPos(p), toScreenPixelDims(d))
+#makeSDL2RectFromCenter(p,d) =
 function renderRectCentered(cam, renderer, center::AbstractPos{C}, dims::AbstractDims{C}, color; outlineColor=nothing) where C
-    origin = rectOrigin(center, dims)
+    origin = topLeftPos(center, dims)
     renderRectFromOrigin(cam, renderer, origin, dims, color; outlineColor=outlineColor)
 end
 function renderRectFromOrigin(cam, renderer, origin::AbstractPos{C}, dims::AbstractDims{C}, color; outlineColor=nothing) where C
@@ -154,8 +159,8 @@ end
 function renderProgressBar(percent, cam::Camera, renderer, center::AbstractPos{C}, dims::D, color, bgColor, boxColor) where D<:AbstractDims{C} where C
     # bg
     renderRectCentered(cam, renderer, center, dims, bgColor)
-    # health
-    origin = rectOrigin(center, dims)
+    # progress
+    origin = topLeftPos(center, dims)
     renderRectFromOrigin(cam, renderer, origin, D(round(percent * dims.w), dims.h), color)
     # outline
     renderRectCentered(cam, renderer, center, dims, nothing; outlineColor=boxColor)
@@ -166,9 +171,9 @@ function renderUnit(o::UnitTypes, playerColor, cam::Camera, renderer, dims::Worl
     renderRectCentered(cam, renderer, o.pos, dims, color)
 
     # render health bar
-    healthBarPos = toUIPixelPos(WorldPos(o.pos.x, o.pos.y + dims.h/2 + healthBarRenderOffset), cam)
+    healthBarPos = WorldPos(o.pos.x, o.pos.y + dims.h/2 + healthBarRenderOffset)
     renderProgressBar(health_percent(o), cam, renderer, healthBarPos,
-          UIPixelDims(healthBarRenderWidth, healthBarRenderHeight), healthBarColor,
+          WorldDims(healthBarRenderWidth, healthBarRenderHeight), healthBarColor,
           kBackgroundColor, healthBarOutlineColor)
 end
 function render(o::Worker, playerColor, cam::Camera, renderer)
@@ -216,7 +221,7 @@ function render(b::AbstractButton, cam::Camera, renderer, color, fontSize)
     if (!b.enabled)
          return
     end
-    topLeft = rectOrigin(b.pos, b.dims)
+    topLeft = topLeftPos(b.pos, b.dims)
     screenPos = toScreenPos(topLeft, cam)
     rect = SDL2.Rect(screenPos..., toScreenPixelDims(b.dims, cam)...)
     x,y = Int[0], Int[0]
@@ -263,7 +268,7 @@ end
 
 function render_checkbox_square(b::AbstractButton, border, color, cam, renderer)
     checkbox_radius = b.dims.h/2. - border  # (checkbox is a square)
-    topLeft = rectOrigin(b.pos, b.dims)
+    topLeft = topLeftPos(b.pos, b.dims)
     topLeft = topLeft .+ border
     screenPos = toScreenPos(topLeft, cam)
     screenDims = toScreenPixelDims(UIPixelDims(checkbox_radius*2, checkbox_radius*2), cam)

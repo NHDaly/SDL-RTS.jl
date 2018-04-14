@@ -2,3 +2,4 @@
 #p2.money = 1000
 
 #p1.units.workers[1].pos = WorldPos(0,0)
+#cam.pos = WorldPos(winWidth[]/2,30)

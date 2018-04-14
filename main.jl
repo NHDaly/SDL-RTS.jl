@@ -252,7 +252,7 @@ type GameScene end
 function handleEvents!(scene::GameScene, e,t)
     global playing,paused
     # Handle Events
-    if (t == SDL2.KEYDOWN || t == SDL2.KEYUP);  handleKeyPress(e,t);
+    if (t == SDL2.KEYDOWN || t == SDL2.KEYUP);  handleGameKeyPress(e,t);
     elseif (t == SDL2.MOUSEWHEEL); handleMouseScroll(e)
     elseif (t == SDL2.QUIT);  playing[] = false;
     end
@@ -268,8 +268,47 @@ function handleMouseScroll(e)
 
     # zoom
     println("$my")
-    cam.w[] -= my * kZoomRate  # If scrolling up, zoom in (shrink camera).
-    cam.h[] -= my * kZoomRate  # (positive `my` is scrolling up)
+    aspectRatio = cam.w[] / cam.h[]
+    cam.w[] -= my * kCamZoomRate  # If scrolling up, zoom in (shrink camera).
+    cam.h[] -= my * kCamZoomRate  # (positive `my` is scrolling up)
+    if cam.w[] <= kCamMinSize
+        cam.w[] = kCamMinSize
+        cam.h[] = kCamMinSize / aspectRatio
+    elseif cam.h[] <= kCamMinSize
+        cam.w[] = kCamMinSize * aspectRatio
+        cam.h[] = kCamMinSize
+    end
+end
+
+function handleGameKeyPress(e,t)
+    global paused,debugText
+    keySym = getKeySym(e)
+    keyDown = (t == SDL2.KEYDOWN)
+
+    if (keySym == keySettings[:keyP1Worker])
+        buyWorker(p1)
+    elseif (keySym == keySettings[:keyP2Worker])
+        buyWorker(p2)
+    elseif (keySym == keySettings[:keyP1Fighter])
+        buyFighter(p1)
+    elseif (keySym == keySettings[:keyP2Fighter])
+        buyFighter(p2)
+    elseif (keySym == keySettings[:keyP1Attack])
+        attack(p2, p1)
+    elseif (keySym == keySettings[:keyP2Attack])
+        attack(p1, p2)
+    elseif (keySym == SDL2.SDLK_RIGHT)
+        cam.pos += Vector2D(kCamPanRate,0)
+    elseif (keySym == SDL2.SDLK_LEFT)
+        cam.pos += Vector2D(-kCamPanRate,0)
+    elseif (keySym == SDL2.SDLK_UP)
+        cam.pos += Vector2D(0,kCamPanRate)
+    elseif (keySym == SDL2.SDLK_DOWN)
+        cam.pos += Vector2D(0,-kCamPanRate)
+    else
+        # Fallback
+        handlePauseKeyPress(e,t)
+    end
 end
 
 unitRenderColor(::Type{Fighter}) = kFighterColor
@@ -343,11 +382,13 @@ function enterWinnerGameLoop(renderer,win, winnerName)
     # When the pause scene returns, reset the game before starting.
     resetGame()
 end
-function resetGame()
+function resetGame(
+
+    )
     global scoreA,scoreB, p1, p2, cam
     cam = Camera(WorldPos(0,0),
-             Threads.Atomic{Int32}(winWidth[]),
-             Threads.Atomic{Int32}(winHeight[]))
+             Threads.Atomic{Float32}(winWidth[]),
+             Threads.Atomic{Float32}(winHeight[]))
 
     scoreB = scoreA = 0
     p1 = Player()
@@ -377,24 +418,12 @@ const gameControls = GameControls()
 randScreenPos(cam) = UIPixelPos(rand(0:winWidth[]), rand(0:winHeight[]))
 randWorldPosOnScreen(cam) = toWorldPos(randScreenPos(cam), cam)
 getKeySym(e) = bitcat(UInt32, e[24:-1:21])
-function handleKeyPress(e,t)
+function handlePauseKeyPress(e,t)
     global paused,debugText
     keySym = getKeySym(e)
     keyDown = (t == SDL2.KEYDOWN)
 
-    if (keySym == keySettings[:keyP1Worker])
-        buyWorker(p1)
-    elseif (keySym == keySettings[:keyP2Worker])
-        buyWorker(p2)
-    elseif (keySym == keySettings[:keyP1Fighter])
-        buyFighter(p1)
-    elseif (keySym == keySettings[:keyP2Fighter])
-        buyFighter(p2)
-    elseif (keySym == keySettings[:keyP1Attack])
-        attack(p2, p1)
-    elseif (keySym == keySettings[:keyP2Attack])
-        attack(p1, p2)
-    elseif (keySym == SDL2.SDLK_ESCAPE)
+    if (keySym == SDL2.SDLK_ESCAPE)
         if (!gameControls.escapeDown && keyDown)
             if game_started[]  # Escape shouldn't start the game.
                 paused[] = !paused[]
@@ -454,7 +483,7 @@ end
 function handleEvents!(scene::PauseScene, e,t)
     global playing,paused
     # Handle Events
-    if (t == SDL2.KEYDOWN || t == SDL2.KEYUP);  handleKeyPress(e,t);
+    if (t == SDL2.KEYDOWN || t == SDL2.KEYUP);  handlePauseKeyPress(e,t);
     elseif (t == SDL2.MOUSEBUTTONUP || t == SDL2.MOUSEBUTTONDOWN)
         b = handleMouseClickButton!(e,t);
         if (b != nothing); run(b); end
@@ -475,7 +504,7 @@ function render(scene::PauseScene, renderer, win)
         jlLogoIcon = SDL2.CreateTextureFromSurface(renderer, jlLogo_surface) # Will be C_NULL on failure.
         SDL2.FreeSurface(jlLogo_surface)
     end
-    screenRect = SDL2.Rect(0,0, winWidth[], winHeight[])
+    screenRect = SDL2.Rect(0,0, winWidth_highDPI[], winWidth_highDPI[])
     # First render the scene under the pause menu so it looks like the pause is over it.
     if (length(sceneStack) > 1) render(sceneStack[end-1], renderer, win) end
     color = kBackgroundColor

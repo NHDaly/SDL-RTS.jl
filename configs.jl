@@ -38,7 +38,10 @@ kUIFontSize = 13
 kBuildOpsRenderHeight = kUIFontSize + 25
 
 # UI
-kZoomRate = 10 # pixel/scroll-click
+kCamZoomRate = 10 # pixel/scroll-click
+kCamPanRate = 10 # pixel/key-press
+
+kCamMinSize = 10 # can't zoom closer than 10 world pixels.
 
 # Unit Attributes
 
@@ -69,7 +72,7 @@ workerSpeed = 350
 
 unitRenderWidth=10
 workerRenderWidth=20
-healthBarRenderOffset = 2
+healthBarRenderOffset = 3
 healthBarRenderWidth = 18; healthBarRenderHeight = 2
 healthBarColor = SDL2.Color(0,210,0,255)
 healthBarOutlineColor = SDL2.Color(0x99,0x99,0x99,0xff)
