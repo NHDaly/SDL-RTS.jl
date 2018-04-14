@@ -12,6 +12,8 @@ struct WorldPos <: AbstractCoord  # 0,0 == middle
     x::Float64
     y::Float64
 end
+toWorldPos(p::WorldPos, c) = p
+
 """
     Vector2D(-2.5,1.0)
 x,y vector representing direction in the game world. Could represent a velocity,

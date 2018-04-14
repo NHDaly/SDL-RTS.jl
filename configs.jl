@@ -34,8 +34,8 @@ kWorkerColor = SDL2.Color(0,0,0,0x55) # transparent
 kP1Color = SDL2.Color(58, 95, 224, 255)
 kP2Color = SDL2.Color(203, 60, 51, 255)
 
-kUIFontSize = 20
-kBuildOpsRenderHeight = kUIFontSize + 15
+kUIFontSize = 13
+kBuildOpsRenderHeight = kUIFontSize + 25
 
 # Unit Attributes
 
@@ -53,6 +53,10 @@ kBuildCost_Fighter = 5
 kMoneyPersecPerworker = 1/3.0 # 1 every n secs
 
 # Game constants
+kRandPurchaseWorkerPosRange = 100
+kRandPurchaseFighterPosRange = 300
+
+
 paddleSpeed = 1000
 paddleTimeToMaxSpeed = 0.15
 paddleTimeToDecelerate = 0.05

@@ -23,17 +23,17 @@ buttons = Dict([
 
      # Key controls buttons
     :keyALeft =>
-        KeyButton(true, UIPixelPos(0,0), 120, 20, keyDisplayNames[keySettings[:keyWorker]],
+        KeyButton(true, UIPixelPos(0,0), 120, 20, keyDisplayNames[keySettings[:keyP1Worker]],
                ()->(tryChangingKeySettingButton(:keyALeft)))
     :keyARight =>
-        KeyButton(true, UIPixelPos(0,0), 120, 20, keyDisplayNames[keySettings[:keyFighter]],
+        KeyButton(true, UIPixelPos(0,0), 120, 20, keyDisplayNames[keySettings[:keyP1Fighter]],
                ()->(tryChangingKeySettingButton(:keyARight)))
-    :keyBLeft =>
-        KeyButton(true, UIPixelPos(0,0), 120, 20, keyDisplayNames[keySettings[:keyBLeft]],
-               ()->(tryChangingKeySettingButton(:keyBLeft)))
-    :keyBRight =>
-        KeyButton(true, UIPixelPos(0,0), 120, 20, keyDisplayNames[keySettings[:keyBRight]],
-               ()->(tryChangingKeySettingButton(:keyBRight)))
+    :keyP2Worker =>
+        KeyButton(true, UIPixelPos(0,0), 120, 20, keyDisplayNames[keySettings[:keyP2Worker]],
+               ()->(tryChangingKeySettingButton(:keyP2Worker)))
+    :keyP2Fighter =>
+        KeyButton(true, UIPixelPos(0,0), 120, 20, keyDisplayNames[keySettings[:keyP2Fighter]],
+               ()->(tryChangingKeySettingButton(:keyP2Fighter)))
 
     :bResetDefaultKeys =>
         KeyButton(false, UIPixelPos(0,0), 240, 30, "Reset Default Controls",
@@ -49,8 +49,8 @@ function recenterButtons!()
     buttons[:bQuit].pos        = screenOffsetFromCenter(0,77)
     buttons[:keyALeft].pos    = UIPixelPos(paddleAControlsX(), winHeight[]-147)
     buttons[:keyARight].pos   = UIPixelPos(paddleAControlsX(), winHeight[]-122)
-    buttons[:keyBLeft].pos    = UIPixelPos(paddleBControlsX(), winHeight[]-147)
-    buttons[:keyBRight].pos   = UIPixelPos(paddleBControlsX(), winHeight[]-122)
+    buttons[:keyP2Worker].pos    = UIPixelPos(paddleBControlsX(), winHeight[]-147)
+    buttons[:keyP2Fighter].pos   = UIPixelPos(paddleBControlsX(), winHeight[]-122)
     buttons[:bResetDefaultKeys].pos   = UIPixelPos(screenCenterX(), winHeight[]-102)
 end
 function toggleAudio(enabled)

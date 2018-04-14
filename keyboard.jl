@@ -1,11 +1,12 @@
 # This file contains the code to allow setting & changing key configs.
 
 keySettingsDefault() = Dict([
-    :keyWorker   => SDL2.SDLK_w
-    :keyFighter  => SDL2.SDLK_f
-    :keyAttack  => SDL2.SDLK_a
-    :keyBLeft   => SDL2.SDLK_LEFT
-    :keyBRight  => SDL2.SDLK_RIGHT
+    :keyP1Worker   => SDL2.SDLK_w
+    :keyP1Fighter  => SDL2.SDLK_f
+    :keyP1Attack  => SDL2.SDLK_a
+    :keyP2Worker   => SDL2.SDLK_i
+    :keyP2Fighter  => SDL2.SDLK_h
+    :keyP2Attack  => SDL2.SDLK_l
   ])
 keySettings = keySettingsDefault()
 
@@ -73,6 +74,8 @@ keyDisplayNames = Dict([
 
     SDL2.SDLK_SPACE => "Space"
   ])
+
+display_key_setting(key::Symbol) = keyDisplayNames[keySettings[key]]
 
 badKeySound = nothing
 function tryChangingKeySettingButton(keyControl::Symbol)
@@ -150,16 +153,16 @@ end
 
 function loadKeySettings(prefs::String)
     p_vals = map((v)->parse(UInt32,v), split(prefs))
-    tryChangingKeySettingButton(:keyWorker, p_vals[1])
-    tryChangingKeySettingButton(:keyFighter, p_vals[2])
-    tryChangingKeySettingButton(:keyBLeft, p_vals[3])
-    tryChangingKeySettingButton(:keyBRight, p_vals[4])
+    tryChangingKeySettingButton(:keyP1Worker, p_vals[1])
+    tryChangingKeySettingButton(:keyP1Fighter, p_vals[2])
+    tryChangingKeySettingButton(:keyP2Worker, p_vals[3])
+    tryChangingKeySettingButton(:keyP2Fighter, p_vals[4])
 end
 function serializeKeySettings()
     join([keySettings[:keyALeft],
           keySettings[:keyARight],
-          keySettings[:keyBLeft],
-          keySettings[:keyBRight],
+          keySettings[:keyP2Worker],
+          keySettings[:keyP2Fighter],
          ], " ")
 end
 

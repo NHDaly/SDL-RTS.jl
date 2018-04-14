@@ -26,7 +26,6 @@ include("player.jl")
 include("display.jl")
 include("keyboard.jl")
 include("menu.jl")
-include("game_configs.jl")
 
 const kGAME_NAME = "Paddle Battle"
 const kSAFE_GAME_NAME = "PaddleBattle"
@@ -144,6 +143,9 @@ timer = Timer()
 i = 1
 
 sceneStack = []  # Used to keep track of the current scene
+
+include("game_configs.jl")
+
 """
     runSceneGameLoop(scene, renderer, win, inSceneVar::Ref{Bool})
 The main game loop. Implements the poll, render, update loop, delegating to the
@@ -259,6 +261,9 @@ function handleEvents!(scene::GameScene, e,t)
     end
 end
 
+unitRenderColor(::Type{Fighter}) = kFighterColor
+unitRenderColor(::Type{Worker}) = kWorkerColor
+playerRenderColor(p::Player) = (if (p === p1) kP1Color elseif (p === p2) kP2Color end)
 
 function render(scene::GameScene, renderer, win)
     global scoreA,scoreB,last_10_frame_times,paused,playing
@@ -276,20 +281,27 @@ function render(scene::GameScene, renderer, win)
     end
 
     # UI text at bottom
-    renderText(renderer, cam, "W: Buy worker   F: Buy fighter  A: Attack (randomly)",
-               UIPixelPos(screenCenterX(), winHeight[] - kUIFontSize)
-               ; fontSize=kUIFontSize)
+    renderText(renderer, cam, "P1: $(display_key_setting(:keyP1Worker)): worker (\$$(build_cost(Worker)))   $(display_key_setting(:keyP1Fighter)): fighter (\$$(build_cost(Fighter))) $(display_key_setting(:keyP1Attack)): Attack",
+               UIPixelPos(5, winHeight[] - kUIFontSize)
+               ; fontSize=kUIFontSize, align=leftJustified)
+    renderText(renderer, cam, "P2: $(display_key_setting(:keyP2Worker)): worker (\$$(build_cost(Worker)))   $(display_key_setting(:keyP2Fighter)): fighter (\$$(build_cost(Fighter))) $(display_key_setting(:keyP2Attack)): Attack",
+               UIPixelPos(winWidth[]-5, winHeight[] - kUIFontSize)
+               ; fontSize=kUIFontSize, align=rightJustified)
 
     # BuildOp UI
-    buildOpsHeight = kBuildOpsRenderHeight
-    for b in p1.build_ops
-        pos = screenToWorld(toScreenPos(UIPixelPos(screenCenterX(), buildOpsHeight),cam),cam)
-        percent = time_remaining(b) / b.buildLength
-        renderProgressBar(percent, cam, renderer, pos,
-                200, 10, blendAlphaColors(kP1Color, kRenderColor(b.unitType)),
-                kBackgroundColor, healthBarOutlineColor)
-        buildOpsHeight += 10
+    function drawBuildOps(p, xPos)
+        buildOpsHeight = kBuildOpsRenderHeight
+        for b in p.build_ops
+            pos = UIPixelPos(xPos, winHeight[] - buildOpsHeight)
+            percent = time_remaining(b) / b.buildLength
+            renderProgressBar(percent, cam, renderer, pos,
+                    200, 10, blendAlphaColors(playerRenderColor(p), unitRenderColor(b.unitType)),
+                    kBackgroundColor, healthBarOutlineColor)
+            buildOpsHeight += 10
+        end
     end
+    drawBuildOps(p1, winWidth[]/4)
+    drawBuildOps(p2, winWidth[]*3/4)
 
 end
 
@@ -348,37 +360,25 @@ end
 const gameControls = GameControls()
 
 randScreenPos(cam) = ScreenPixelPos(rand(0:cam.w[]), rand(0:cam.h[]))
-randWorldPosOnScreen(cam) = screenToWorld(randScreenPos(cam), cam)
+randWorldPosOnScreen(cam) = toWorldPos(randScreenPos(cam), cam)
 getKeySym(e) = bitcat(UInt32, e[24:-1:21])
 function handleKeyPress(e,t)
     global paused,debugText
     keySym = getKeySym(e)
     keyDown = (t == SDL2.KEYDOWN)
-    if (keySym == keySettings[:keyWorker])
-        randRange = 100
-        randWorkerPos = rand(p1.units.workers).pos
-        randPos = WorldPos(rand(-randRange:randRange) + randWorkerPos.x,
-                           rand(-randRange:randRange) + randWorkerPos.y)
-        purchase_worker!(p1, randPos)
-    elseif (keySym == keySettings[:keyFighter])
-        randRange = 300
-        randWorkerPos = rand(p1.units.workers).pos
-        randPos = WorldPos(rand(-randRange:randRange) + randWorkerPos.x,
-                           rand(-randRange:randRange) + randWorkerPos.y)
-        purchase_fighter!(p1, randPos)
-    elseif (keySym == keySettings[:keyAttack])
-        num_attacked = 0
-        for f in p1.units.fighters
-            if isempty(p2.units.units)
-                break
-            end
-            attack!(rand(p2.units.units), f)
-            num_attacked += 1
-        end
-        remaining_fighters = length(p1.units.fighters) - num_attacked
-        while length(p1.units.fighters) > remaining_fighters
-            destroy_unit!(p1.units.fighters[1])
-        end
+
+    if (keySym == keySettings[:keyP1Worker])
+        buyWorker(p1)
+    elseif (keySym == keySettings[:keyP2Worker])
+        buyWorker(p2)
+    elseif (keySym == keySettings[:keyP1Fighter])
+        buyFighter(p1)
+    elseif (keySym == keySettings[:keyP2Fighter])
+        buyFighter(p2)
+    elseif (keySym == keySettings[:keyP1Attack])
+        attack(p2, p1)
+    elseif (keySym == keySettings[:keyP2Attack])
+        attack(p1, p2)
     elseif (keySym == SDL2.SDLK_ESCAPE)
         if (!gameControls.escapeDown && keyDown)
             if game_started[]  # Escape shouldn't start the game.
@@ -388,6 +388,41 @@ function handleKeyPress(e,t)
         gameControls.escapeDown = keyDown
     elseif (keySym == SDL2.SDLK_BACKQUOTE)
         keyDown && (debugText = !debugText)
+    end
+end
+
+function randPosAroundWorkers(p, randRange)
+    if isempty(p.units.workers)
+        randPos = randWorldPosOnScreen(cam)
+    else
+        randWorkerPos = rand(p.units.workers).pos
+        randPos = WorldPos(rand(-randRange:randRange) + randWorkerPos.x,
+        rand(-randRange:randRange) + randWorkerPos.y)
+    end
+end
+function buyWorker(p)
+    purchase_worker!(p, randPosAroundWorkers(p, kRandPurchaseWorkerPosRange))
+end
+function buyFighter(p)
+    randRange = 300
+    if isempty(p.units.workers)
+        audioEnabled && SDL2.Mix_PlayChannel( Int32(-1), badKeySound, Int32(0) )
+    else
+        purchase_fighter!(p, randPosAroundWorkers(p, kRandPurchaseFighterPosRange))
+    end
+end
+function attack(pTarget, p)
+    num_attacked = 0
+    for f in p.units.fighters
+        if isempty(pTarget.units.units)
+            break
+        end
+        attack!(rand(pTarget.units.units), f)
+        num_attacked += 1
+    end
+    remaining_fighters = length(p.units.fighters) - num_attacked
+    while length(p.units.fighters) > remaining_fighters
+        destroy_unit!(p.units.fighters[1])
     end
 end
 
@@ -551,7 +586,7 @@ Base.@ccallable function julia_main(ARGS::Vector{String})::Cint
         playing[] = paused[] = true
         scene = GameScene()
         runSceneGameLoop(scene, renderer, win, playing)
-    catch e
+    catch e#
         if isa(e, QuitException)
             quitSDL(win)
         else

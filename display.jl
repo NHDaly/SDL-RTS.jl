@@ -48,14 +48,21 @@ function toScreenPos(p::UIPixelPos, c::Camera)
     ScreenPixelPos(floor(scale*p.x), floor(scale*p.y))
 end
 toScreenPos(p::ScreenPixelPos, c::Camera) = p
-function screenToWorld(p::ScreenPixelPos, c::Camera)
+function toWorldPos(p::ScreenPixelPos, c::Camera)
     scale = worldScale(c)
-    WorldPos(floor(p.x - c.w[]/2.)/scale, floor(p.y - c.h[]/2.)/scale)
+    WorldPos(floor(p.x - c.w[]/2.)/scale, -floor(p.y - c.h[]/2.)/scale)
 end
-function screenToUI(p::ScreenPixelPos, c::Camera)
+function toWorldPos(p::UIPixelPos, c::Camera)
+    toWorldPos(toScreenPos(p, cam))
+end
+function toUIPixelPos(p::ScreenPixelPos, c::Camera)
     scale = worldScale(c)
     ScreenPixelPos(floor(p.x/scale), floor(p.y/scale))
 end
+function toUIPixelPos(p::WorldPos, c::Camera)
+    toUIPixelPos(toScreenPos(p))
+end
+toUIPixelPos(p::UIPixelPos, c::Camera) = p
 function screenScaleDims(w,h,c::Camera)
     scale = worldScale(c)
     round(scale*w), round(scale*h) # round to whole pixels
