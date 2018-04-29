@@ -172,9 +172,14 @@ function renderUnit(o::UnitTypes, playerColor, cam::Camera, renderer, dims::Worl
 
     # render health bar
     healthBarPos = WorldPos(o.pos.x, o.pos.y + dims.h/2 + healthBarRenderOffset)
+    healthBarDims = WorldDims(healthBarRenderWidth, healthBarRenderHeight)
     renderProgressBar(health_percent(o), cam, renderer, healthBarPos,
-          WorldDims(healthBarRenderWidth, healthBarRenderHeight), healthBarColor,
-          kBuildOpsBgColor, healthBarOutlineColor)
+          healthBarDims, healthBarColor, kBuildOpsBgColor,
+          if toScreenPixelDims(healthBarDims, cam).h <= 2 # pixels
+              nothing
+          else
+              healthBarOutlineColor
+          end)
 end
 function render(o::Worker, playerColor, cam::Camera, renderer)
     dims = WorldDims(workerRenderWidth, workerRenderWidth)
