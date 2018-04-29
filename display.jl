@@ -54,8 +54,8 @@ UIPixelPos(x::Number, y::Number) = UIPixelPos(convert.(Int, floor.((x,y)))...)
 
 """ Absolute size on screen, in pixels. Use with ScreenPixelPos. """
 struct ScreenPixelDims <: AbstractDims{ScreenPixelCoords}
-    w::Int
-    h::Int
+    w::Int32  # Int32 to match SDL
+    h::Int32
 end
 """ Size on screen, in un-dpi-scaled "pixels". Use with UIPixelPos. """
 struct UIPixelDims <: AbstractDims{UIPixelCoords}
@@ -90,7 +90,7 @@ end
 toScreenPos(p::ScreenPixelPos, c::Camera) = p
 function toWorldPos(p::ScreenPixelPos, c::Camera)
     scale = worldScale(c)
-    WorldPos(round(p.x - c.w[]/2.)/scale, -round(p.y - c.h[]/2.)/scale)
+    WorldPos((p.x - c.w[]/2.)/scale, -(p.y - c.h[]/2.)/scale)
 end
 function toWorldPos(p::UIPixelPos, c::Camera)
     toWorldPos(toScreenPos(p, cam), cam)
@@ -120,6 +120,14 @@ function toUIPixelDims(d::WorldDims, c::Camera)
     toUIPixelDims(toScreenDims(d, cam), cam)
 end
 toUIPixelDims(dims::UIPixelDims,c::Camera) = dims
+function toWorldDims(dims::ScreenPixelDims,c::Camera)
+    scale = worldScale(c)
+    WorldDims(dims.w/scale, dims.h/scale)
+end
+function toWorldDims(d::UIPixelDims, c::Camera)
+    toWorldDims(toScreenDims(d, cam), cam)
+end
+toWorldDims(dims::WorldDims,c::Camera) = dims
 
 SetRenderDrawColor(renderer::Ptr{SDL2.Renderer}, c::SDL2.Color) = SDL2.SetRenderDrawColor(
     renderer, Int64(c.r), Int64(c.g), Int64(c.b), Int64(c.a))
