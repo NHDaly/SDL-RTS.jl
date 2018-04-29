@@ -1,5 +1,15 @@
 println("Start")
 
+# IDEAS:
+# 1. An RTS + Clicker combo:
+#   Exponential-scaling game, but shown visually, not just via text. You start
+#    out really tiny, growing your web/nest/city/etc, eventually you see some
+#    enemies and you kill them, all the while expanding and zooming out.
+#   Then you somehow increase the scale of the units you're placing. Maybe you
+#    can combine your on-screen units into a structure, or maybe you literally
+#    group some units and *define* the structure yourself. That would be cool!
+#    It's like emergent scaling or something.
+
 using SDL2
 
 # True if this file is being run through the interpreter, and false if being
