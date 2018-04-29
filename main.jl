@@ -264,6 +264,8 @@ function handleEvents!(scene::GameScene, e,t)
     # Handle Events
     if (t == SDL2.KEYDOWN || t == SDL2.KEYUP);  handleGameKeyPress(e,t);
     elseif (t == SDL2.MOUSEWHEEL); handleMouseScroll(e)
+    #elseif (t == SDL2.MOUSEBUTTONUP || t == SDL2.MOUSEBUTTONDOWN)
+    elseif (t == SDL2.MOUSEMOTION); handleMousePan(e)
     elseif (t == SDL2.QUIT);  playing[] = false;
     end
 
@@ -288,6 +290,22 @@ function handleMouseScroll(e)
         cam.w[] = kCamMinSize * aspectRatio
         cam.h[] = kCamMinSize
     end
+end
+
+function handleMousePan(e)
+    state = bitcat(UInt32, e[20:-1:17])
+    # only pan if left mouse drag
+    if state & SDL2.BUTTON_LMASK == 0 || state & SDL2.BUTTON_RMASK != 0
+        return
+    end
+
+    # pan
+    xrel = bitcat(Int32, e[32:-1:29])
+    yrel = bitcat(Int32, e[36:-1:33])
+
+    # "Natural scroll" (negate mouse values)
+    worldPan = toWorldDims(ScreenPixelDims(-xrel, yrel), cam) # but un-negate yrel b/c world/screen are opposite.
+    cam.pos += Vector2D(worldPan.w, worldPan.h)
 end
 
 function handleGameKeyPress(e,t)
