@@ -159,6 +159,11 @@ include("game_configs.jl")
 
 e = nothing  # FOR DEBUGGING ONLY!
 
+struct UserError
+    msg
+end
+
+
 """
     runSceneGameLoop(scene, renderer, win, inSceneVar::Ref{Bool})
 The main game loop. Implements the poll, render, update loop, delegating to the
@@ -183,16 +188,26 @@ function runSceneGameLoop(scene, renderer, win, inSceneVar::Ref{Bool})
         if (debug) reloadConfigsFiles() end
 
         # Handle Events
-        hadEvents = true
-        while hadEvents
-            e,hadEvents = pollEvent!()
-            t = getEventType(e)
-            handleEvents!(scene,e,t)
+        errorMsg = ""
+        try
+            hadEvents = true
+            while hadEvents
+                e,hadEvents = pollEvent!()
+                t = getEventType(e)
+                handleEvents!(scene,e,t)
+            end
+        catch e
+            if isa(e, UserError)
+                errorMsg = e.msg
+            else
+                throw(e)
+            end
         end
 
         # Render
         render(scene, renderer, win)
         if (debug && debugText) renderFPS(renderer,last_10_frame_times) end
+        if (errorMsg != "") renderText(renderer, cam, errorMsg, UIPixelPos(winWidth[]*1/2, 200)) end
         SDL2.RenderPresent(renderer)
 
         # Update
@@ -298,10 +313,21 @@ function handleMouseScroll(e)
     end
 end
 
+#function handleGameMouseClick!(e, clickType)
+#    mx = bitcat(UInt32, e[24:-1:21])
+#    my = bitcat(UInt32, e[28:-1:25])
+#    mButton = e[17]
+#    if mButton == SDL2.BUTTON_RIGHT
+#        p = toWorldPos(UIPixelPos(mx,my), cam)
+#    end
+#end
+
 function handleGameKeyPress(e,t)
     global paused,debugText
     keySym = getKeySym(e)
     keyDown = (t == SDL2.KEYDOWN)
+    keyRepeat = (getKeyRepeat(e) != 0)
+    println("repeat: $(getKeyRepeat(e))")
 
     if (keySym == keySettings[:keyP1Collector])
         buyCollector(p1)
@@ -311,10 +337,10 @@ function handleGameKeyPress(e,t)
         buyFighter(p1)
     elseif (keySym == keySettings[:keyP2Fighter])
         buyFighter(p2)
-    elseif (keySym == keySettings[:keyP1Attack])
-        attack(p2, p1)
-    elseif (keySym == keySettings[:keyP2Attack])
-        attack(p1, p2)
+    elseif (keySym == keySettings[:keyP1Attack] && keyDown && !keyRepeat)
+        attackToggle(p2, p1)
+    elseif (keySym == keySettings[:keyP2Attack] && keyDown && !keyRepeat)
+        attackToggle(p1, p2)
     elseif (keySym == SDL2.SDLK_RIGHT)
         cam.pos += Vector2D(kCamPanRate,0)
     elseif (keySym == SDL2.SDLK_LEFT)
@@ -341,7 +367,7 @@ function render(scene::GameScene, renderer, win)
 
     renderScore(renderer)
 
-    renderFoodParticles(cam,renderer, curFoodParticles)
+    #renderFoodParticles(cam,renderer, curFoodParticles)
 
     for u in p1.units.units
         render(u, kP1Color, cam, renderer)
@@ -352,10 +378,10 @@ function render(scene::GameScene, renderer, win)
 
 
     # UI text at bottom
-    renderText(renderer, cam, "P1: $(display_key_setting(:keyP1Collector)): collector (\$$(build_cost(Collector)))   $(display_key_setting(:keyP1Fighter)): fighter (\$$(build_cost(Fighter))) $(display_key_setting(:keyP1Attack)): Attack",
+    renderText(renderer, cam, "P1: $(display_key_setting(:keyP1Collector)): collector (\$$(build_cost(Collector)))   $(display_key_setting(:keyP1Fighter)): scout (\$$(build_cost(Fighter))) $(display_key_setting(:keyP1Attack)): Attack",
                UIPixelPos(5, winHeight[] - kUIFontSize)
                ; fontSize=kUIFontSize, align=leftJustified)
-    renderText(renderer, cam, "P2: $(display_key_setting(:keyP2Collector)): collector (\$$(build_cost(Collector)))   $(display_key_setting(:keyP2Fighter)): fighter (\$$(build_cost(Fighter))) $(display_key_setting(:keyP2Attack)): Attack",
+    renderText(renderer, cam, "P2: $(display_key_setting(:keyP2Collector)): collector (\$$(build_cost(Collector)))   $(display_key_setting(:keyP2Fighter)): scout (\$$(build_cost(Fighter))) $(display_key_setting(:keyP2Attack)): Attack",
                UIPixelPos(winWidth[]-5, winHeight[] - kUIFontSize)
                ; fontSize=kUIFontSize, align=rightJustified)
 
@@ -390,8 +416,11 @@ function performUpdates!(scene::GameScene, dt)
     update!(p1, dt)
     update!(p2, dt)
 
+    performAttackUpdate!(p1, p2, dt)
+    performAttackUpdate!(p2, p1, dt)
+
     moveCamIfMouseOnEdge!(dt)
-    updateFoodParticles(dt)
+    #updateFoodParticles(dt)
 end
 
 foodSheetDriftVel = Vector2D(0,0)
@@ -447,10 +476,8 @@ function enterWinnerGameLoop(renderer,win, winnerName)
     # When the pause scene returns, reset the game before starting.
     resetGame()
 end
-function resetGame(
-
-    )
-    global scoreA,scoreB, p1, p2, cam
+function resetGame()
+    global scoreA,scoreB, p1, p2, cam, attackingMap
     cam = Camera(WorldPos(0,0),
              Threads.Atomic{Float32}(winWidth[]),
              Threads.Atomic{Float32}(winHeight[]))
@@ -465,6 +492,8 @@ function resetGame(
     add_unit!(p2.units, Collector(p2.units, WorldPos(250,50)))
     add_unit!(p2.units, Fighter(p2.units, WorldPos(200,200)))
     add_unit!(p2.units, Fighter(p2.units, WorldPos(200,-200)))
+
+    attackingMap = Dict(p1=>false, p2=>false)
 end
 
 mutable struct KeyControls
@@ -483,6 +512,7 @@ const gameControls = GameControls()
 randScreenPos(cam) = UIPixelPos(rand(0:winWidth[]), rand(0:winHeight[]))
 randWorldPosOnScreen(cam) = toWorldPos(randScreenPos(cam), cam)
 getKeySym(e) = bitcat(UInt32, e[24:-1:21])
+getKeyRepeat(e) = bitcat(UInt8, e[14:-1:14])
 function handlePauseKeyPress(e,t)
     global paused,debugText
     keySym = getKeySym(e)
@@ -506,11 +536,20 @@ function randPosAroundCollectors(p, randRange)
     else
         randCollectorPos = rand(p.units.collectors).pos
         randPos = WorldPos(rand(-randRange:randRange) + randCollectorPos.x,
-        rand(-randRange:randRange) + randCollectorPos.y)
+                        rand(-randRange:randRange) + randCollectorPos.y)
+    end
+end
+function randPosAroundFighters(p, randRange)
+    if isempty(p.units.fighters)
+        throw(UserError("Must have a scout to create Collector."))
+    else
+        randFighterPos = rand(p.units.fighters).pos
+        randPos = WorldPos(rand(-randRange:randRange) + randFighterPos.x,
+                        rand(-randRange:randRange) + randFighterPos.y)
     end
 end
 function buyCollector(p)
-    purchase_collector!(p, randPosAroundCollectors(p, kRandPurchaseCollectorPosRange))
+    purchase_collector!(p, randPosAroundFighters(p, kRandPurchaseCollectorPosRange))
 end
 function buyFighter(p)
     randRange = 300
@@ -520,18 +559,47 @@ function buyFighter(p)
         purchase_fighter!(p, randPosAroundCollectors(p, kRandPurchaseFighterPosRange))
     end
 end
-function attack(pTarget, p)
-    num_attacked = 0
-    for f in p.units.fighters
-        if isempty(pTarget.units.units)
-            break
+
+attackingMap = Dict(p1=>false, p2=>false)
+function attackToggle(pTarget, p)
+    attackingMap[p] = !attackingMap[p]
+    if attackingMap[p]
+        # sick units on pTarget's units
+        for f in p.units.fighters
+            if isempty(pTarget.units.units)
+                break
+            end
+            f.attackTargetUnit = rand(pTarget.units.units)
         end
-        attack!(rand(pTarget.units.units), f)
-        num_attacked += 1
+    else
+        for f in p.units.fighters
+            f.attackTargetUnit = nothing
+        end
     end
-    remaining_fighters = length(p.units.fighters) - num_attacked
-    while length(p.units.fighters) > remaining_fighters
-        destroy_unit!(p.units.fighters[1])
+end
+function performAttackUpdate!(p, pTarget, dt)
+    if !attackingMap[p]
+        return
+    end
+    # Move units towards pTarget's units
+    units_to_destroy = []
+    for f in p.units.fighters
+        # Stop attacking if target already dead or not attacking anything
+        if f.attackTargetUnit == nothing || f.attackTargetUnit.health <= 0
+            f.attackTargetUnit = nothing
+            continue
+        end
+        targetVec = f.attackTargetUnit.pos - f.pos
+        if (magSqrd(targetVec) > 1) targetVec = unitVec(targetVec) end
+        f.pos += targetVec * kFighterSpeed * dt
+
+        if overlapping(f.pos,kFighterSize, f.attackTargetUnit.pos, kFighterSize)
+            attack!(f.attackTargetUnit, f)
+            push!(units_to_destroy, f)
+        end
+    end
+    for f in units_to_destroy
+        destroy_unit!(f)
     end
 end
 

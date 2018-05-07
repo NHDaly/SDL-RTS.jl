@@ -53,5 +53,6 @@ import Base.*, Base./, Base.-, Base.+
 -(x::AbstractPos) = AbstractPos(-x.x, -x.y)
 -(x::Vector2D) = Vector2D(-x.x, -x.y)
 
-magSqrd(x::Vector2D) = x.x^2 + x.y^2
-magnitude(x::Vector2D) = sqrt(magSqrd(x))
+magSqrd(v::Vector2D) = v.x^2 + v.y^2
+magnitude(v::Vector2D) = sqrt(magSqrd(v))
+unitVec(v::Vector2D) = v / magnitude(v)

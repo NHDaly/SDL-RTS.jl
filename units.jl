@@ -13,8 +13,9 @@ mutable struct Fighter
     health
     player  # who owns this unit
     pos::WorldPos
-    Fighter(player) = new(max_health(Fighter), player, WorldPos(0,0))
-    Fighter(player, pos) = new(max_health(Fighter), player, pos)
+    attackTargetUnit  # who currently attacking
+    Fighter(player) = new(max_health(Fighter), player, WorldPos(0,0), nothing)
+    Fighter(player, pos) = new(max_health(Fighter), player, pos, nothing)
 end
 
 Base.show(io::IO, u::Collector) = print(io, "Collector($(u.health), $(Ptr{PlayerUnits}(pointer_from_objref(u.player))), $(u.pos)")

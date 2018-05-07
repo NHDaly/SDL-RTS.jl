@@ -64,8 +64,10 @@ kBuildCost_Fighter = 5
 
 kMoneyPersecPercollector = 1/3.0 # 1 every n secs
 
+kFighterSpeed = 100 # feet/sec
+
 # Game constants
-kRandPurchaseCollectorPosRange = 100
+kRandPurchaseCollectorPosRange = 50
 kRandPurchaseFighterPosRange = 300
 
 kFoodDistributionFreq = 100 # pixels / food
