@@ -30,7 +30,7 @@ kCopyrightNotices = ["Copyright (c) 2018 @nhdalyMadeThis, LLC.",
 kBackgroundColor = SDL2.Color(210,210,210,255)
 kBuildOpsBgColor = SDL2.Color(210,210,210,0x80)
 kFighterColor = SDL2.Color(0xff,0xff,0xff,0x22) # transparent
-kWorkerColor = SDL2.Color(0,0,0,0x55) # transparent
+kCollectorColor = SDL2.Color(0,0,0,0x55) # transparent
 
 kP1Color = SDL2.Color(58, 95, 224, 255)
 kP2Color = SDL2.Color(203, 60, 51, 255)
@@ -48,21 +48,21 @@ kMouseEdgeDetectionWidth = 50
 
 # Unit Attributes
 
-kMaxHealth_Worker = 10
+kMaxHealth_Collector = 10
 kMaxHealth_Fighter = 20
 
-kAttackDamage_Worker = 1
+kAttackDamage_Collector = 1
 kAttackDamage_Fighter = 5
 
-kBuildTime_Worker = 5
+kBuildTime_Collector = 5
 kBuildTime_Fighter = 10
-kBuildCost_Worker = 3
+kBuildCost_Collector = 3
 kBuildCost_Fighter = 5
 
-kMoneyPersecPerworker = 1/3.0 # 1 every n secs
+kMoneyPersecPercollector = 1/3.0 # 1 every n secs
 
 # Game constants
-kRandPurchaseWorkerPosRange = 100
+kRandPurchaseCollectorPosRange = 100
 kRandPurchaseFighterPosRange = 300
 
 
@@ -71,10 +71,10 @@ paddleTimeToMaxSpeed = 0.15
 paddleTimeToDecelerate = 0.05
 paddleAccel = paddleSpeed/paddleTimeToMaxSpeed
 paddleDeccel = paddleSpeed/paddleTimeToDecelerate
-workerSpeed = 350
+collectorSpeed = 350
 
 unitRenderWidth=10
-workerRenderWidth=20
+collectorRenderWidth=20
 healthBarRenderOffset = 3
 healthBarRenderWidth = 18; healthBarRenderHeight = 2
 healthBarColor = SDL2.Color(0,210,0,255)
@@ -87,5 +87,5 @@ winningScore = 11
 config_reload_time_s = 1  # seconds
 
 # Code Testing
-#set_health!(p1.units.workers[2], 5)
-#println(p1.units.workers[2].health)
+#set_health!(p1.units.collectors[2], 5)
+#println(p1.units.collectors[2].health)

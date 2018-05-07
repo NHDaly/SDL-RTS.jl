@@ -24,7 +24,7 @@ mutable struct Player
 end
 
 function update!(p::Player, dt)
-    p.money += length(p.units.workers) * money_persec_perworker() * dt
+    p.money += length(p.units.collectors) * money_persec_percollector() * dt
 
     for bop in p.build_ops
         update!(bop.timer, dt)
@@ -47,8 +47,8 @@ function purchase_unit!(p::Player, unitType::Type, addUnitFunc)
     sort!(p.build_ops; by=time_remaining)
     return (bop, p.money)
 end
-function purchase_worker!(p::Player, pos = WorldPos(0,0))
-     purchase_unit!(p, Worker, ()->add_unit!(p.units, Worker(p.units, pos)))
+function purchase_collector!(p::Player, pos = WorldPos(0,0))
+     purchase_unit!(p, Collector, ()->add_unit!(p.units, Collector(p.units, pos)))
  end
 function purchase_fighter!(p::Player, pos = WorldPos(0,0))
      purchase_unit!(p, Fighter, ()->add_unit!(p.units, Fighter(p.units, pos)))
@@ -56,17 +56,17 @@ function purchase_fighter!(p::Player, pos = WorldPos(0,0))
 
 # Tests
 p = Player(20)
-purchase_worker!(p)
+purchase_collector!(p)
 @test 17 == p.money
 purchase_fighter!(p)
-purchase_worker!(p)
+purchase_collector!(p)
 @test 3 == length(p.build_ops)
 update!(p, 0.05)
 @test 3 == length(p.build_ops)
 update!(p, 100)
 @test 0 == length(p.build_ops)
 @test 3 == length(p.units.units)
-@test 2 == length(p.units.workers)
+@test 2 == length(p.units.collectors)
 # kill unit
 try
     while true

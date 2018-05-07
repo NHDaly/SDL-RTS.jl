@@ -189,9 +189,9 @@ function renderUnit(o::UnitTypes, playerColor, cam::Camera, renderer, dims::Worl
               healthBarOutlineColor
           end)
 end
-function render(o::Worker, playerColor, cam::Camera, renderer)
-    dims = WorldDims(workerRenderWidth, workerRenderWidth)
-    renderUnit(o, playerColor, cam, renderer, dims, kWorkerColor)
+function render(o::Collector, playerColor, cam::Camera, renderer)
+    dims = WorldDims(collectorRenderWidth, collectorRenderWidth)
+    renderUnit(o, playerColor, cam, renderer, dims, kCollectorColor)
 end
 function render(o::Fighter, playerColor, cam::Camera, renderer)
     dims = WorldDims(unitRenderWidth, unitRenderWidth)

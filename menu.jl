@@ -23,14 +23,14 @@ buttons = Dict([
 
      # Key controls buttons
     :keyALeft =>
-        KeyButton(true, UIPixelPos(0,0), UIPixelDims(120, 20), keyDisplayNames[keySettings[:keyP1Worker]],
+        KeyButton(true, UIPixelPos(0,0), UIPixelDims(120, 20), keyDisplayNames[keySettings[:keyP1Collector]],
                ()->(tryChangingKeySettingButton(:keyALeft)))
     :keyARight =>
         KeyButton(true, UIPixelPos(0,0), UIPixelDims(120, 20), keyDisplayNames[keySettings[:keyP1Fighter]],
                ()->(tryChangingKeySettingButton(:keyARight)))
-    :keyP2Worker =>
-        KeyButton(true, UIPixelPos(0,0), UIPixelDims(120, 20), keyDisplayNames[keySettings[:keyP2Worker]],
-               ()->(tryChangingKeySettingButton(:keyP2Worker)))
+    :keyP2Collector =>
+        KeyButton(true, UIPixelPos(0,0), UIPixelDims(120, 20), keyDisplayNames[keySettings[:keyP2Collector]],
+               ()->(tryChangingKeySettingButton(:keyP2Collector)))
     :keyP2Fighter =>
         KeyButton(true, UIPixelPos(0,0), UIPixelDims(120, 20), keyDisplayNames[keySettings[:keyP2Fighter]],
                ()->(tryChangingKeySettingButton(:keyP2Fighter)))
@@ -49,7 +49,7 @@ function recenterButtons!()
     buttons[:bQuit].pos        = screenOffsetFromCenter(0,77)
     buttons[:keyALeft].pos    = UIPixelPos(paddleAControlsX(), winHeight[]-147)
     buttons[:keyARight].pos   = UIPixelPos(paddleAControlsX(), winHeight[]-122)
-    buttons[:keyP2Worker].pos    = UIPixelPos(paddleBControlsX(), winHeight[]-147)
+    buttons[:keyP2Collector].pos    = UIPixelPos(paddleBControlsX(), winHeight[]-147)
     buttons[:keyP2Fighter].pos   = UIPixelPos(paddleBControlsX(), winHeight[]-122)
     buttons[:bResetDefaultKeys].pos   = UIPixelPos(screenCenterX(), winHeight[]-102)
 end

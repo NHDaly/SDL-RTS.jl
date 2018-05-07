@@ -1,10 +1,10 @@
 # This file contains the code to allow setting & changing key configs.
 
 keySettingsDefault() = Dict([
-    :keyP1Worker   => SDL2.SDLK_w
+    :keyP1Collector   => SDL2.SDLK_w
     :keyP1Fighter  => SDL2.SDLK_f
     :keyP1Attack  => SDL2.SDLK_a
-    :keyP2Worker   => SDL2.SDLK_i
+    :keyP2Collector   => SDL2.SDLK_i
     :keyP2Fighter  => SDL2.SDLK_h
     :keyP2Attack  => SDL2.SDLK_l
   ])
@@ -153,15 +153,15 @@ end
 
 function loadKeySettings(prefs::String)
     p_vals = map((v)->parse(UInt32,v), split(prefs))
-    tryChangingKeySettingButton(:keyP1Worker, p_vals[1])
+    tryChangingKeySettingButton(:keyP1Collector, p_vals[1])
     tryChangingKeySettingButton(:keyP1Fighter, p_vals[2])
-    tryChangingKeySettingButton(:keyP2Worker, p_vals[3])
+    tryChangingKeySettingButton(:keyP2Collector, p_vals[3])
     tryChangingKeySettingButton(:keyP2Fighter, p_vals[4])
 end
 function serializeKeySettings()
     join([keySettings[:keyALeft],
           keySettings[:keyARight],
-          keySettings[:keyP2Worker],
+          keySettings[:keyP2Collector],
           keySettings[:keyP2Fighter],
          ], " ")
 end

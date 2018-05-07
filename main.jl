@@ -284,7 +284,6 @@ function handleMouseScroll(e)
     #  ie: toScreenPos(toWorldPos(ScreenPixelPos(mx,my),cam),cam) ==
     #         toScreenPos(toWorldPos(ScreenPixelPos(mx,my),cam2),cam2)
     # zoom
-    println("$my")
     aspectRatio = cam.w[] / cam.h[]
     cam.w[] -= my * kCamZoomRate  # If scrolling up, zoom in (shrink camera).
     cam.h[] -= my * kCamZoomRate  # (positive `my` is scrolling up)
@@ -302,10 +301,10 @@ function handleGameKeyPress(e,t)
     keySym = getKeySym(e)
     keyDown = (t == SDL2.KEYDOWN)
 
-    if (keySym == keySettings[:keyP1Worker])
-        buyWorker(p1)
-    elseif (keySym == keySettings[:keyP2Worker])
-        buyWorker(p2)
+    if (keySym == keySettings[:keyP1Collector])
+        buyCollector(p1)
+    elseif (keySym == keySettings[:keyP2Collector])
+        buyCollector(p2)
     elseif (keySym == keySettings[:keyP1Fighter])
         buyFighter(p1)
     elseif (keySym == keySettings[:keyP2Fighter])
@@ -329,7 +328,7 @@ function handleGameKeyPress(e,t)
 end
 
 unitRenderColor(::Type{Fighter}) = kFighterColor
-unitRenderColor(::Type{Worker}) = kWorkerColor
+unitRenderColor(::Type{Collector}) = kCollectorColor
 playerRenderColor(p::Player) = (if (p === p1) kP1Color elseif (p === p2) kP2Color end)
 
 function render(scene::GameScene, renderer, win)
@@ -348,10 +347,10 @@ function render(scene::GameScene, renderer, win)
     end
 
     # UI text at bottom
-    renderText(renderer, cam, "P1: $(display_key_setting(:keyP1Worker)): worker (\$$(build_cost(Worker)))   $(display_key_setting(:keyP1Fighter)): fighter (\$$(build_cost(Fighter))) $(display_key_setting(:keyP1Attack)): Attack",
+    renderText(renderer, cam, "P1: $(display_key_setting(:keyP1Collector)): collector (\$$(build_cost(Collector)))   $(display_key_setting(:keyP1Fighter)): fighter (\$$(build_cost(Fighter))) $(display_key_setting(:keyP1Attack)): Attack",
                UIPixelPos(5, winHeight[] - kUIFontSize)
                ; fontSize=kUIFontSize, align=leftJustified)
-    renderText(renderer, cam, "P2: $(display_key_setting(:keyP2Worker)): worker (\$$(build_cost(Worker)))   $(display_key_setting(:keyP2Fighter)): fighter (\$$(build_cost(Fighter))) $(display_key_setting(:keyP2Attack)): Attack",
+    renderText(renderer, cam, "P2: $(display_key_setting(:keyP2Collector)): collector (\$$(build_cost(Collector)))   $(display_key_setting(:keyP2Fighter)): fighter (\$$(build_cost(Fighter))) $(display_key_setting(:keyP2Attack)): Attack",
                UIPixelPos(winWidth[]-5, winHeight[] - kUIFontSize)
                ; fontSize=kUIFontSize, align=rightJustified)
 
@@ -428,12 +427,12 @@ function resetGame(
 
     scoreB = scoreA = 0
     p1 = Player()
-    add_unit!(p1.units, Worker(p1.units, WorldPos(-250,50)))
+    add_unit!(p1.units, Collector(p1.units, WorldPos(-250,50)))
     add_unit!(p1.units, Fighter(p1.units, WorldPos(-200,200)))
     add_unit!(p1.units, Fighter(p1.units, WorldPos(-200,-200)))
 
     p2 = Player()
-    add_unit!(p2.units, Worker(p2.units, WorldPos(250,50)))
+    add_unit!(p2.units, Collector(p2.units, WorldPos(250,50)))
     add_unit!(p2.units, Fighter(p2.units, WorldPos(200,200)))
     add_unit!(p2.units, Fighter(p2.units, WorldPos(200,-200)))
 end
@@ -471,24 +470,24 @@ function handlePauseKeyPress(e,t)
     end
 end
 
-function randPosAroundWorkers(p, randRange)
-    if isempty(p.units.workers)
+function randPosAroundCollectors(p, randRange)
+    if isempty(p.units.collectors)
         randPos = randWorldPosOnScreen(cam)
     else
-        randWorkerPos = rand(p.units.workers).pos
-        randPos = WorldPos(rand(-randRange:randRange) + randWorkerPos.x,
-        rand(-randRange:randRange) + randWorkerPos.y)
+        randCollectorPos = rand(p.units.collectors).pos
+        randPos = WorldPos(rand(-randRange:randRange) + randCollectorPos.x,
+        rand(-randRange:randRange) + randCollectorPos.y)
     end
 end
-function buyWorker(p)
-    purchase_worker!(p, randPosAroundWorkers(p, kRandPurchaseWorkerPosRange))
+function buyCollector(p)
+    purchase_collector!(p, randPosAroundCollectors(p, kRandPurchaseCollectorPosRange))
 end
 function buyFighter(p)
     randRange = 300
-    if isempty(p.units.workers)
+    if isempty(p.units.collectors)
         audioEnabled && SDL2.Mix_PlayChannel( Int32(-1), badKeySound, Int32(0) )
     else
-        purchase_fighter!(p, randPosAroundWorkers(p, kRandPurchaseFighterPosRange))
+        purchase_fighter!(p, randPosAroundCollectors(p, kRandPurchaseFighterPosRange))
     end
 end
 function attack(pTarget, p)

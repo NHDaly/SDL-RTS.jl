@@ -2,12 +2,12 @@
 include("objects.jl")
 import Base.show
 
-mutable struct Worker
+mutable struct Collector
     health
     player  # who owns this unit
     pos::WorldPos
-    Worker(player) = new(max_health(Worker), player, WorldPos(0,0))
-    Worker(player, pos) = new(max_health(Worker), player, pos)
+    Collector(player) = new(max_health(Collector), player, WorldPos(0,0))
+    Collector(player, pos) = new(max_health(Collector), player, pos)
 end
 mutable struct Fighter
     health
@@ -17,30 +17,30 @@ mutable struct Fighter
     Fighter(player, pos) = new(max_health(Fighter), player, pos)
 end
 
-Base.show(io::IO, u::Worker) = print(io, "Worker($(u.health), $(Ptr{PlayerUnits}(pointer_from_objref(u.player))), $(u.pos)")
+Base.show(io::IO, u::Collector) = print(io, "Collector($(u.health), $(Ptr{PlayerUnits}(pointer_from_objref(u.player))), $(u.pos)")
 health_percent(u) = health(u) / max_health(typeof(u))
 
-health(x::Worker) = x.health
-set_health!(x::Worker, h) = (x.health = h)
+health(x::Collector) = x.health
+set_health!(x::Collector, h) = (x.health = h)
 
 health(x::Fighter) = x.health
 set_health!(x::Fighter, h) = (x.health = h)
 
 # Unit attributes
-@noinline max_health(::Type{Worker}) = (global kMaxHealth_Worker; kMaxHealth_Worker)
-@noinline max_health(::Type{Fighter}) = (global kMaxHealth_Worker; kMaxHealth_Fighter)
+@noinline max_health(::Type{Collector}) = (global kMaxHealth_Collector; kMaxHealth_Collector)
+@noinline max_health(::Type{Fighter}) = (global kMaxHealth_Collector; kMaxHealth_Fighter)
 
-@noinline attack_damage(::Worker) = (global kMaxHealth_Worker; kAttackDamage_Worker)
-@noinline attack_damage(::Fighter) = (global kMaxHealth_Worker; kAttackDamage_Fighter)
+@noinline attack_damage(::Collector) = (global kMaxHealth_Collector; kAttackDamage_Collector)
+@noinline attack_damage(::Fighter) = (global kMaxHealth_Collector; kAttackDamage_Fighter)
 
-@noinline build_time(::Type{Worker}) = (global kMaxHealth_Worker; kBuildTime_Worker)
-@noinline build_time(::Type{Fighter}) = (global kMaxHealth_Worker; kBuildTime_Fighter)
-@noinline build_cost(::Type{Worker}) = (global kMaxHealth_Worker; kBuildCost_Worker)
-@noinline build_cost(::Type{Fighter}) = (global kMaxHealth_Worker; kBuildCost_Fighter)
+@noinline build_time(::Type{Collector}) = (global kMaxHealth_Collector; kBuildTime_Collector)
+@noinline build_time(::Type{Fighter}) = (global kMaxHealth_Collector; kBuildTime_Fighter)
+@noinline build_cost(::Type{Collector}) = (global kMaxHealth_Collector; kBuildCost_Collector)
+@noinline build_cost(::Type{Fighter}) = (global kMaxHealth_Collector; kBuildCost_Fighter)
 
-@noinline money_persec_perworker() = kMoneyPersecPerworker # 1 every n secs
+@noinline money_persec_percollector() = kMoneyPersecPercollector # 1 every n secs
 
-unit_types = (Worker, Fighter)
+unit_types = (Collector, Fighter)
 UnitTypes = Union{unit_types...}
 
 # ---------------------
@@ -48,14 +48,14 @@ UnitTypes = Union{unit_types...}
 # --------------------
 mutable struct PlayerUnits
     units::Array
-    workers::Array{Worker}
+    collectors::Array{Collector}
     fighters::Array{Fighter}
 end
 PlayerUnits() = PlayerUnits([],[],[])
 Base.show(io::IO, pu::PlayerUnits) = print(io,
                      "PlayerUnits(\n"
                     *"            units[$(length(pu.units))]\n"
-                    *"            workers[$(length(pu.workers))]\n"
+                    *"            collectors[$(length(pu.collectors))]\n"
                     *"            fighters[$(length(pu.fighters))]\n"
                     *"           )")
 
@@ -67,9 +67,9 @@ end
 function add_unit!(p::PlayerUnits, u)
     return add_unit_helper(p,u)
 end
-function add_unit!(p::PlayerUnits, u::Worker)
+function add_unit!(p::PlayerUnits, u::Collector)
     add_unit_helper(p,u)
-    push!(p.workers, u)
+    push!(p.collectors, u)
     return u
 end
 function add_unit!(p::PlayerUnits, u::Fighter)
@@ -77,12 +77,12 @@ function add_unit!(p::PlayerUnits, u::Fighter)
     push!(p.fighters, u)
     return u
 end
-add_worker!(p::PlayerUnits) = add_unit!(p, Worker(p))
+add_collector!(p::PlayerUnits) = add_unit!(p, Collector(p))
 add_fighter!(p::PlayerUnits) = add_unit!(p, Fighter(p))
 
 remove_unit!(p, unit) = filter!(u->u≠unit, p.units)
-function remove_unit!(p, unit::Worker)
-    filter!(u->u≠unit, p.workers)
+function remove_unit!(p, unit::Collector)
+    filter!(u->u≠unit, p.collectors)
     filter!(u->u≠unit, p.units)
 end
 function remove_unit!(p, unit::Fighter)
@@ -92,12 +92,12 @@ end
 
 function clear_units!(p)
     empty!(p.units)
-    empty!(p.workers)
+    empty!(p.collectors)
     empty!(p.fighters)
 end
-function clear_workers!(p)
-    filter!(u->!isa(u, Worker), p.units)
-    empty!(p.workers)
+function clear_collectors!(p)
+    filter!(u->!isa(u, Collector), p.units)
+    empty!(p.collectors)
 end
 function clear_fighters!(p)
     filter!(u->!isa(u, Fighter), p.units)
@@ -124,13 +124,13 @@ end
 
 # Tests
 using Base.Test
-workers = PlayerUnits()
-add_worker!(workers)
-destroy_unit!(workers.units[1])
-@test 0 == length(workers.units)
-w = add_worker!(workers)
-w = add_worker!(workers)
-@test 2 == length(workers.units)
+collectors = PlayerUnits()
+add_collector!(collectors)
+destroy_unit!(collectors.units[1])
+@test 0 == length(collectors.units)
+w = add_collector!(collectors)
+w = add_collector!(collectors)
+@test 2 == length(collectors.units)
 attack!(w, Fighter(nothing))
 attack!(w, Fighter(nothing))
-@test 1 == length(workers.units)
+@test 1 == length(collectors.units)
