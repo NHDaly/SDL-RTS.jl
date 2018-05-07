@@ -33,6 +33,7 @@ include("config.jl")
 include("configs.jl")
 include("timing.jl")
 include("player.jl")
+include("game.jl")
 include("display.jl")
 include("keyboard.jl")
 include("menu.jl")
@@ -259,6 +260,7 @@ end
 # -------------- Game Scene ---------------------
 type GameScene end
 
+curFoodParticles = []
 function handleEvents!(scene::GameScene, e,t)
     global playing,paused
     # Handle Events
@@ -339,12 +341,15 @@ function render(scene::GameScene, renderer, win)
 
     renderScore(renderer)
 
+    renderFoodParticles(cam,renderer, curFoodParticles)
+
     for u in p1.units.units
         render(u, kP1Color, cam, renderer)
     end
     for u in p2.units.units
         render(u, kP2Color, cam, renderer)
     end
+
 
     # UI text at bottom
     renderText(renderer, cam, "P1: $(display_key_setting(:keyP1Collector)): collector (\$$(build_cost(Collector)))   $(display_key_setting(:keyP1Fighter)): fighter (\$$(build_cost(Fighter))) $(display_key_setting(:keyP1Attack)): Attack",
@@ -386,6 +391,31 @@ function performUpdates!(scene::GameScene, dt)
     update!(p2, dt)
 
     moveCamIfMouseOnEdge!(dt)
+    updateFoodParticles(dt)
+end
+
+foodSheetDriftVel = Vector2D(0,0)
+function updateFoodParticles(dt)
+    global curFoodParticles,worldFoodSheetOffset,foodSheetDriftVel
+    curFoodParticles = foodDistribution(cam.pos, WorldDims(cam.w[],cam.h[]))
+
+    worldFoodSheetOffset += foodSheetDriftVel * dt
+    #range = (kFoodSheetDriftMaxSpeed_sqrd - magSqrd(foodSheetDriftVel))
+    driftAccel = Vector2D(rand(-kFoodSheetDriftAccel:0.01:kFoodSheetDriftAccel, 2)...) * dt
+    foodSheetDriftVel += driftAccel
+    if magSqrd(foodSheetDriftVel) > kFoodSheetDriftMaxSpeed_sqrd
+        foodSheetDriftVel -= foodSheetDriftVel * (0.1 * dt)
+    end
+
+    collectorDims = WorldDims(collectorRenderWidth,collectorRenderWidth)
+    for p in curFoodParticles
+        for c in p1.units.collectors
+            if overlapping(toWorldPos(p.pos), p.size, c.pos, collectorDims)
+                destroyFoodParticle(p)
+                p1.money += p.amountFood
+            end
+        end
+    end
 end
 
 function moveCamIfMouseOnEdge!(dt)

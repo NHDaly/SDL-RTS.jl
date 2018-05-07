@@ -95,6 +95,7 @@ end
 function toWorldPos(p::UIPixelPos, c::Camera)
     toWorldPos(toScreenPos(p, cam), cam)
 end
+toWorldPos(p::WorldPos, c::Camera) = p
 function toUIPixelPos(p::ScreenPixelPos, c::Camera)
     scale = dpiScale()
     UIPixelPos(round(p.x/scale), round(p.y/scale))
@@ -190,7 +191,21 @@ function renderUnit(o::UnitTypes, playerColor, cam::Camera, renderer, dims::Worl
           end)
 end
 function render(o::Collector, playerColor, cam::Camera, renderer)
+    unitColor = blendAlphaColors(playerColor, kCollectorColor)
     dims = WorldDims(collectorRenderWidth, collectorRenderWidth)
+    tl = topLeftPos(o.pos, dims)
+    for y in [tl.y, tl.y - dims.h]
+        for x in tl.x+1 : 5 : tl.x-1 + dims.w
+            nudge = Vector2D(rand(0.0:0.01:2.0,2)...)
+            renderRectCentered(cam, renderer, WorldPos(x,y)+nudge, WorldDims(2,10), unitColor)
+        end
+    end
+    for x in [tl.x, tl.x + dims.w]
+        for y in tl.y-1 : -5 : tl.y+1 - dims.h
+            nudge = Vector2D(rand(0.0:0.01:2.0,2)...)
+            renderRectCentered(cam, renderer, WorldPos(x,y)+nudge, WorldDims(10,2), unitColor)
+        end
+    end
     renderUnit(o, playerColor, cam, renderer, dims, kCollectorColor)
 end
 function render(o::Fighter, playerColor, cam::Camera, renderer)

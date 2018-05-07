@@ -35,6 +35,9 @@ kCollectorColor = SDL2.Color(0,0,0,0x55) # transparent
 kP1Color = SDL2.Color(58, 95, 224, 255)
 kP2Color = SDL2.Color(203, 60, 51, 255)
 
+kFoodColor = SDL2.Color(0,210,0,50)
+kFoodSize = 50
+
 kUIFontSize = 13
 kBuildOpsRenderHeight = kUIFontSize + 25
 
@@ -64,6 +67,11 @@ kMoneyPersecPercollector = 1/3.0 # 1 every n secs
 # Game constants
 kRandPurchaseCollectorPosRange = 100
 kRandPurchaseFighterPosRange = 300
+
+kFoodDistributionFreq = 100 # pixels / food
+kFoodSheetDriftAccel = 50 # pixels / food
+kFoodSheetDriftMaxSpeed_sqrd = 10^2 # pixels / food
+kFoodAmount = 10
 
 
 paddleSpeed = 1000

@@ -45,10 +45,13 @@ import Base.*, Base./, Base.-, Base.+
 *(a::Vector2D, x::Number) = Vector2D(a.x*x, a.y*x)
 *(x::Number, a::Vector2D) = a*x
 /(a::Vector2D, x::Number) = Vector2D(a.x/x, a.y/x)
-+(a::WorldPos, b::Vector2D) = WorldPos(a.x+b.x, a.y+b.y)
--(a::WorldPos, b::Vector2D) = WorldPos(a.x-b.x, a.y-b.y)
-+(a::Vector2D, b::WorldPos) = WorldPos(a.x+b.x, a.y+b.y)
--(a::Vector2D, b::WorldPos) = WorldPos(a.x-b.x, a.y-b.y)
--(a::WorldPos, b::WorldPos) = Vector2D(a.x-b.x, a.y-b.y)
--(x::WorldPos) = WorldPos(-x.x, -x.y)
++(a::P, b::Vector2D) where {P<:AbstractPos} = P(a.x+b.x, a.y+b.y)
+-(a::P, b::Vector2D) where {P<:AbstractPos} = P(a.x-b.x, a.y-b.y)
++(a::Vector2D, b::P) where {P<:AbstractPos} = P(a.x+b.x, a.y+b.y)
+-(a::Vector2D, b::P) where {P<:AbstractPos} = P(a.x-b.x, a.y-b.y)
+-(a::AbstractPos, b::AbstractPos) = Vector2D(a.x-b.x, a.y-b.y)
+-(x::AbstractPos) = AbstractPos(-x.x, -x.y)
 -(x::Vector2D) = Vector2D(-x.x, -x.y)
+
+magSqrd(x::Vector2D) = x.x^2 + x.y^2
+magnitude(x::Vector2D) = sqrt(magSqrd(x))
