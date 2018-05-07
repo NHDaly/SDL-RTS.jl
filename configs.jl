@@ -40,9 +40,11 @@ kBuildOpsRenderHeight = kUIFontSize + 25
 
 # UI
 kCamZoomRate = 10 # pixel/scroll-click
-kCamPanRate = 10 # pixel/key-press
+kCamPanRate = 500 # pixel/second
 
 kCamMinSize = 10 # can't zoom closer than 10 world pixels.
+
+kMouseEdgeDetectionWidth = 50
 
 # Unit Attributes
 

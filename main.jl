@@ -52,7 +52,7 @@ function makeWinRenderer()
 
     win = SDL2.CreateWindow(kGAME_NAME,
         Int32(SDL2.WINDOWPOS_CENTERED()), Int32(SDL2.WINDOWPOS_CENTERED()), winWidth[], winHeight[],
-        UInt32(SDL2.WINDOW_ALLOW_HIGHDPI|SDL2.WINDOW_OPENGL|SDL2.WINDOW_RESIZABLE|SDL2.WINDOW_SHOWN));
+        UInt32(SDL2.WINDOW_ALLOW_HIGHDPI|SDL2.WINDOW_OPENGL|SDL2.WINDOW_FULLSCREEN_DESKTOP|SDL2.WINDOW_SHOWN));
     SDL2.SetWindowMinimumSize(win, minWinWidth, minWinHeight)
     SDL2.AddEventWatch(cfunction(windowEventWatcher, Cint, Tuple{Ptr{Void}, Ptr{SDL2.Event}}), win);
 
@@ -265,9 +265,10 @@ function handleEvents!(scene::GameScene, e,t)
     if (t == SDL2.KEYDOWN || t == SDL2.KEYUP);  handleGameKeyPress(e,t);
     elseif (t == SDL2.MOUSEWHEEL); handleMouseScroll(e)
     #elseif (t == SDL2.MOUSEBUTTONUP || t == SDL2.MOUSEBUTTONDOWN)
-    elseif (t == SDL2.MOUSEMOTION); handleMousePan(e)
+    #elseif (t == SDL2.MOUSEMOTION); handleMousePan(e)
     elseif (t == SDL2.QUIT);  playing[] = false;
     end
+
 
     if (paused[])
          pause!(timer)
@@ -278,6 +279,10 @@ end
 function handleMouseScroll(e)
     my = bitcat(SDL2.Sint32, e[24:-1:21])
 
+    # TODO: move cam based on mouse pos during scroll
+    #  want to keep mouse pos over same WorldPos while scrolling.
+    #  ie: toScreenPos(toWorldPos(ScreenPixelPos(mx,my),cam),cam) ==
+    #         toScreenPos(toWorldPos(ScreenPixelPos(mx,my),cam2),cam2)
     # zoom
     println("$my")
     aspectRatio = cam.w[] / cam.h[]
@@ -290,22 +295,6 @@ function handleMouseScroll(e)
         cam.w[] = kCamMinSize * aspectRatio
         cam.h[] = kCamMinSize
     end
-end
-
-function handleMousePan(e)
-    state = bitcat(UInt32, e[20:-1:17])
-    # only pan if left mouse drag
-    if state & SDL2.BUTTON_LMASK == 0 || state & SDL2.BUTTON_RMASK != 0
-        return
-    end
-
-    # pan
-    xrel = bitcat(Int32, e[32:-1:29])
-    yrel = bitcat(Int32, e[36:-1:33])
-
-    # "Natural scroll" (negate mouse values)
-    worldPan = toWorldDims(ScreenPixelDims(-xrel, yrel), cam) # but un-negate yrel b/c world/screen are opposite.
-    cam.pos += Vector2D(worldPan.w, worldPan.h)
 end
 
 function handleGameKeyPress(e,t)
@@ -396,7 +385,26 @@ function performUpdates!(scene::GameScene, dt)
     reloadConfigsFiles(["configs.jl", "game_configs.jl"])
     update!(p1, dt)
     update!(p2, dt)
+
+    moveCamIfMouseOnEdge!(dt)
 end
+
+function moveCamIfMouseOnEdge!(dt)
+    x,y = Int[1], Int[1]
+    #SDL2.PumpEvents()
+    SDL2.GetMouseState(pointer(x), pointer(y))
+    if (winWidth[] - x[]) < kMouseEdgeDetectionWidth
+        cam.pos += Vector2D(kCamPanRate,0) * dt
+    elseif x[] < kMouseEdgeDetectionWidth
+        cam.pos += Vector2D(-kCamPanRate,0) * dt
+    end
+    if y[] < kMouseEdgeDetectionWidth
+        cam.pos += Vector2D(0,kCamPanRate) * dt
+    elseif (winHeight[] - y[]) < kMouseEdgeDetectionWidth
+        cam.pos += Vector2D(0,-kCamPanRate) * dt
+    end
+end
+
 
 function enterWinnerGameLoop(renderer,win, winnerName)
     # Reset the buttons to the beginning of the game.
@@ -628,7 +636,7 @@ function load_audio_files()
     badKeySound = SDL2.Mix_LoadWAV( "$assets/ping.wav" );
 end
 
-Base.@ccallable function julia_main(ARGS::Vector{String})::Cint
+function game_main(ARGS)
     global renderer, win, paused,game_started, cam
     win = nothing
     try
@@ -663,6 +671,9 @@ Base.@ccallable function julia_main(ARGS::Vector{String})::Cint
         end
     end
         return 0
+end
+Base.@ccallable function julia_main(ARGS::Vector{String})::Cint
+    game_main(ARGS)
 end
 
 #julia_main([""])  # no julia_main if currently compiling.

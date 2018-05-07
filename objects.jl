@@ -35,7 +35,7 @@ toWorldDims(d::WorldDims, c) = d
 x,y vector representing direction in the game world. Could represent a velocity,
 a distance, etc. Subtracting two `WorldPos`itions results in a `Vector2D`.
 """
-struct Vector2D
+struct Vector2D   # TODO: consider making this abstract and parameterized on CoordType.
     x::Float64
     y::Float64
 end
