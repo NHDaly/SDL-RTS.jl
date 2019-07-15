@@ -397,7 +397,7 @@ end
 
 #  ------- Image rendering ---------
 
-function render(t::Ptr{SDL2.Texture}, pos::AbstractPos{C}, cam::Camera, renderer; size::Union{Void, AbstractDims{C}} = nothing) where C
+function render(t::Ptr{SDL2.Texture}, pos::AbstractPos{C}, cam::Camera, renderer; size::Union{Cvoid, AbstractDims{C}} = nothing) where C
     if (t == C_NULL) return end
     pos = toScreenPos(pos, cam)
     if size != nothing

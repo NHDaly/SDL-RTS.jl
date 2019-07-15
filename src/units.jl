@@ -59,7 +59,7 @@ Base.show(io::IO, pu::PlayerUnits) = print(io,
                     *"           )")
 
 function add_unit_helper(p::PlayerUnits, u)
-    assert(u.player == p)
+    @assert u.player == p
     push!(p.units, u)
     return u
 end
@@ -122,7 +122,7 @@ end
 
 
 # Tests
-using Base.Test
+using Test
 collectors = PlayerUnits()
 add_collector!(collectors)
 destroy_unit!(collectors.units[1])

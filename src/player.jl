@@ -72,5 +72,5 @@ try
     while true
         attack!(p.units.units[1], p.units.fighters[1])
     end
-end
+catch end
 @test 0 == length(p.units.units)

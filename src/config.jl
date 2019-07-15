@@ -1,8 +1,8 @@
 # This file allows loading (and dynamically reloading) the configs from
 # the configs file: configs.jl.
 
-config_read_timer = Timer()
-config_print_error_timer = Timer()
+config_read_timer = WallTimer()
+config_print_error_timer = WallTimer()
 
 config_reload_time_s = 0.5  # seconds
 

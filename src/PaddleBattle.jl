@@ -10,7 +10,8 @@ module PaddleBattle
 #    group some units and *define* the structure yourself. That would be cool!
 #    It's like emergent scaling or something.
 
-using SDL2
+using SimpleDirectMediaLayer
+SDL2 = SimpleDirectMediaLayer
 
 # True if this file is being run through the interpreter, and false if being
 # compiled.
@@ -29,9 +30,9 @@ end
 
 const assets = "assets" # directory path for game assets relative to pwd().
 
-include("config.jl")
-include("configs.jl")
 include("timing.jl")
+include("config.jl")
+include("../assets/configs.jl")
 include("player.jl")
 include("game.jl")
 include("display.jl")
@@ -55,7 +56,7 @@ function makeWinRenderer()
         Int32(SDL2.WINDOWPOS_CENTERED()), Int32(SDL2.WINDOWPOS_CENTERED()), winWidth[], winHeight[],
         UInt32(SDL2.WINDOW_ALLOW_HIGHDPI|SDL2.WINDOW_OPENGL|SDL2.WINDOW_FULLSCREEN_DESKTOP|SDL2.WINDOW_SHOWN));
     SDL2.SetWindowMinimumSize(win, minWinWidth, minWinHeight)
-    SDL2.AddEventWatch(cfunction(windowEventWatcher, Cint, Tuple{Ptr{Void}, Ptr{SDL2.Event}}), win);
+    SDL2.AddEventWatch(cfunction(windowEventWatcher, Cint, Tuple{Ptr{Cvoid}, Ptr{SDL2.Event}}), win);
 
     # Find out how big the created window actually was (depends on the system):
     winWidth[], winHeight[], winWidth_highDPI[], winHeight_highDPI[] = getWindowSize(win)
@@ -69,7 +70,7 @@ end
 # This huge function handles all window events. I believe it needs to be a
 # callback instead of just the regular pollEvent because the main thread is
 # paused while resizing, whereas this callback continues to trigger.
-function windowEventWatcher(data_ptr::Ptr{Void}, event_ptr::Ptr{SDL2.Event})::Cint
+function windowEventWatcher(data_ptr::Ptr{Cvoid}, event_ptr::Ptr{SDL2.Event})::Cint
     global winWidth, winHeight, cam, window_paused, renderer, win
     ev = unsafe_load(event_ptr, 1)
     ee = ev._Event
@@ -125,7 +126,7 @@ struct QuitException <: Exception end
 function quitSDL(win)
     # Need to close the callback before quitting SDL to prevent it from hanging
     # https://github.com/n0name/2D_Engine/issues/3
-    SDL2.DelEventWatch(cfunction(windowEventWatcher, Cint, Tuple{Ptr{Void}, Ptr{SDL2.Event}}), win);
+    SDL2.DelEventWatch(cfunction(windowEventWatcher, Cint, Tuple{Ptr{Cvoid}, Ptr{SDL2.Event}}), win);
     SDL2.Mix_CloseAudio()
     SDL2.TTF_Quit()
     SDL2.Quit()
@@ -150,12 +151,12 @@ playing = Ref(playing_)
 debugText = false
 audioEnabled = true
 last_10_frame_times = [1.]
-timer = Timer()
+timer = WallTimer()
 i = 1
 
 sceneStack = []  # Used to keep track of the current scene
 
-include("game_configs.jl")
+include("../assets/game_configs.jl")
 
 e = nothing  # FOR DEBUGGING ONLY!
 
@@ -216,7 +217,7 @@ function runSceneGameLoop(scene, renderer, win, inSceneVar::Ref{Bool})
         # update takes too long, allow the game to actually slow, rather than
         # having too big of frames.
         min_fps = 20.0
-        dt = min(dt, 1./min_fps)
+        dt = min(dt, 1.0/min_fps)
         start!(timer)
         if debug
             last_10_frame_times = push!(last_10_frame_times, dt)
@@ -267,13 +268,13 @@ function bitcat(outType::Type{T}, arr)::T where T<:Number
 end
 
 function renderFPS(renderer,last_10_frame_times)
-    fps = Int(floor(1./mean(last_10_frame_times)))
+    fps = Int(floor(1.0/mean(last_10_frame_times)))
     txt = "FPS: $fps"
     renderText(renderer, cam, txt, UIPixelPos(winWidth[]*1/5, 200))
 end
 
 # -------------- Game Scene ---------------------
-type GameScene end
+struct GameScene end
 
 curFoodParticles = []
 function handleEvents!(scene::GameScene, e,t)
@@ -412,7 +413,7 @@ end
 
 function performUpdates!(scene::GameScene, dt)
     global p1, p2
-    reloadConfigsFiles(["configs.jl", "game_configs.jl"])
+    reloadConfigsFiles(["../assets/configs.jl", "../assets/game_configs.jl"])
     update!(p1, dt)
     update!(p2, dt)
 
@@ -601,7 +602,7 @@ function performAttackUpdate!(dt)
 end
 
 # -------------- Pause Scene ---------------------
-type PauseScene
+struct PauseScene
     titleText::String
     subtitleText::String
 end

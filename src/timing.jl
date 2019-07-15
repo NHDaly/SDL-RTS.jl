@@ -1,32 +1,32 @@
-mutable struct Timer
+mutable struct WallTimer
     starttime_ns::typeof(Base.time_ns())
     paused_elapsed_ns::typeof(Base.time_ns())
-    Timer() = new(0,0)
+    WallTimer() = new(0,0)
 end
 
-function start!(timer::Timer)
+function start!(timer::WallTimer)
     timer.starttime_ns = (Base.time_ns)()
     return nothing
 end
-started(timer::Timer) = (timer.starttime_ns ≠ 0)
+started(timer::WallTimer) = (timer.starttime_ns ≠ 0)
 
 """ Return seconds since timer was started or 0 if not yet started. """
-function elapsed(timer::Timer)
+function elapsed(timer::WallTimer)
     local elapsedtime_ns = (Base.time_ns)() - timer.starttime_ns
     return started(timer) * float(elapsedtime_ns) / 1000000000
 end
 
-function pause!(timer::Timer)
+function pause!(timer::WallTimer)
     timer.paused_elapsed_ns = (Base.time_ns)() - timer.starttime_ns
     return nothing
 end
-function unpause!(timer::Timer)
+function unpause!(timer::WallTimer)
     timer.starttime_ns = (Base.time_ns)()
     timer.starttime_ns -= timer.paused_elapsed_ns;
     return nothing
 end
 
-t = Timer()
+t = WallTimer()
 start!(t)
 elapsed(t)
 pause!(t)
@@ -36,7 +36,7 @@ elapsed(t)
 
 # -----------------
 
-""" Like Timer, but uses in-game time instead of wall time. """
+""" Like WallTimer, but uses in-game time instead of wall time. """
 mutable struct GameTimer
     elapsed_ns::typeof(Base.time_ns())
     started::Bool
