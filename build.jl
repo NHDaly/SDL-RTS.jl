@@ -5,7 +5,7 @@ using ApplicationBuilder
 # SDL2 = SimpleDirectMediaLayer
 
 APPNAME="Paddle Battle"
-jl_main="src/PaddleBattle.jl"
+jl_main="src/RTS.jl"
 dist_certificate="Developer ID Application: nhdalyMadeThis, LLC"  # outside App Store
 appstore_certificate="3rd Party Mac Developer Application: nhdalyMadeThis, LLC"  # outside App Store
 

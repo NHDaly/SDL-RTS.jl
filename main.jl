@@ -1,3 +1,3 @@
-using PaddleBattle
+using RTS
 
-PaddleBattle.julia_main([""])
+RTS.julia_main([""])

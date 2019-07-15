@@ -135,11 +135,10 @@ SetRenderDrawColor(renderer::Ptr{SDL2.Renderer}, c::SDL2.Color) = SDL2.SetRender
     renderer, Int64(c.r), Int64(c.g), Int64(c.b), Int64(c.a))
 
 # Convenience functions to allow `WorldPos(x,y)...` to become `x,y`
-import Base: start, next, done
-start(a::Union{AbstractPos, AbstractDims}) = 1
-next(p::AbstractPos, i) = (if (i==1) return (p.x,2) elseif (i==2) return (p.y,3) else throw(DomainError()) end)
-next(p::AbstractDims, i) = (if (i==1) return (p.w,2) elseif (i==2) return (p.h,3) else throw(DomainError()) end)
-done(p::Union{AbstractPos, AbstractDims}, i) = (i == 3)
+Base.iterate(p::AbstractPos, i=1) = if i==1 return (p.x,2) elseif i==2 return (p.y,3) else nothing end
+Base.iterate(p::AbstractDims, i=1) = if i==1 return (p.w,2) elseif i==2 return (p.h,3) else nothing end
+# To allow .+ (but doesn't work)
+#Base.length(::Union{AbstractPos,AbstractDims}) = 2
 
 topLeftPos(center::P, dims::D) where P<:AbstractPos{Coord} where D<:AbstractDims{Coord} where Coord<:ScreenCoords = P(center.x - dims.w/2.0, center.y - dims.h/2.0)  # positive is down
 topLeftPos(center::P, dims::D) where P<:AbstractPos{Coord} where D<:AbstractDims{Coord} where Coord<:WorldCoords = P(center.x - dims.w/2.0, center.y + dims.h/2.)  # positive is up
@@ -298,7 +297,7 @@ end
 function render_checkbox_square(b::AbstractButton, border, color, cam, renderer)
     checkbox_radius = b.dims.h/2.0 - border  # (checkbox is a square)
     topLeft = topLeftPos(b.pos, b.dims)
-    topLeft = topLeft .+ border
+    topLeft = topLeft + border
     screenPos = toScreenPos(topLeft, cam)
     screenDims = toScreenPixelDims(UIPixelDims(checkbox_radius*2, checkbox_radius*2), cam)
     rect = SDL2.Rect(screenPos..., screenDims...)

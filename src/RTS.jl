@@ -1,4 +1,4 @@
-module PaddleBattle
+module RTS
 
 # IDEAS:
 # 1. An RTS + Clicker combo:
@@ -12,6 +12,8 @@ module PaddleBattle
 
 using SimpleDirectMediaLayer
 SDL2 = SimpleDirectMediaLayer
+
+using ApplicationBuilderAppUtils
 
 # True if this file is being run through the interpreter, and false if being
 # compiled.
@@ -44,6 +46,8 @@ const kSAFE_GAME_NAME = "PaddleBattle"
 const kBUNDLE_ORGANIZATION = "nhdalyMadeThis"
 
 # -------- Opening a window ---------------
+# Forward reference for @cfunction
+function windowEventWatcher end
 
 # Note: These are all Atomics, since they can be modified by the
 # windowEventWatcher callback, which can run in another thread!
@@ -56,7 +60,7 @@ function makeWinRenderer()
         Int32(SDL2.WINDOWPOS_CENTERED()), Int32(SDL2.WINDOWPOS_CENTERED()), winWidth[], winHeight[],
         UInt32(SDL2.WINDOW_ALLOW_HIGHDPI|SDL2.WINDOW_OPENGL|SDL2.WINDOW_FULLSCREEN_DESKTOP|SDL2.WINDOW_SHOWN));
     SDL2.SetWindowMinimumSize(win, minWinWidth, minWinHeight)
-    SDL2.AddEventWatch(cfunction(windowEventWatcher, Cint, Tuple{Ptr{Cvoid}, Ptr{SDL2.Event}}), win);
+    SDL2.AddEventWatch(@cfunction(windowEventWatcher, Cint, (Ptr{Nothing}, Ptr{SDL2.Event})), win);
 
     # Find out how big the created window actually was (depends on the system):
     winWidth[], winHeight[], winWidth_highDPI[], winHeight_highDPI[] = getWindowSize(win)
@@ -201,7 +205,7 @@ function runSceneGameLoop(scene, renderer, win, inSceneVar::Ref{Bool})
             if isa(e, UserError)
                 errorMsg = e.msg
             else
-                throw(e)
+                rethrow()
             end
         end
 
@@ -221,7 +225,7 @@ function runSceneGameLoop(scene, renderer, win, inSceneVar::Ref{Bool})
         start!(timer)
         if debug
             last_10_frame_times = push!(last_10_frame_times, dt)
-            if length(last_10_frame_times) > 10; shift!(last_10_frame_times) ; end
+            if length(last_10_frame_times) > 10; pop!(last_10_frame_times) ; end
         end
 
         performUpdates!(scene, dt)
@@ -707,23 +711,6 @@ function mouseOnButton(m::UIPixelPos, b::AbstractButton, cam)
     return false
 end
 
-function change_dir_if_bundle()
-    # julia_cmd() shows how this julia process was invoked.
-    cmd_strings = Base.shell_split(string(Base.julia_cmd()))
-    # The first string is the full path to this executable.
-    full_binary_name = cmd_strings[1][2:end] # (remove leading backtick)
-    if is_apple()
-        # On Apple devices, if this is running inside a .app bundle, it starts
-        # us with pwd="$HOME". Change dir to the Resources dir instead.
-        # Can tell if we're in a bundle by what the full_binary_name ends in.
-        m = match(r".app/Contents/MacOS/[^/]+$", full_binary_name)
-        if m != nothing
-            resources_dir = full_binary_name[1:findlast("/MacOS", full_binary_name)[1]-1]*"/Resources"
-            cd(resources_dir)
-        end
-    end
-    println("new pwd: $(pwd())")
-end
 function load_audio_files()
     global pingSound, scoreSound, badKeySound
     pingSound = SDL2.Mix_LoadWAV( "$assets/ping.wav" );
@@ -736,7 +723,7 @@ function game_main(ARGS)
     win = nothing
     try
         SDL2.init()
-        change_dir_if_bundle()
+        ApplicationBuilderAppUtils.cd_to_bundle_resources()
         #init_prefspath()
         #load_prefs_backup()
         load_audio_files()
@@ -754,7 +741,7 @@ function game_main(ARGS)
         audioEnabled && SDL2.Mix_PlayMusic( music, Int32(-1) )
         recenterButtons!()
         resetGame();  # Initialize game stuff.
-        println("Preferences file: \"$prefsfile\"")
+        #println("Preferences file: $(repr(prefsfile))")
         playing[] = paused[] = true
         scene = GameScene()
         runSceneGameLoop(scene, renderer, win, playing)
@@ -762,7 +749,7 @@ function game_main(ARGS)
         if isa(e, QuitException)
             quitSDL(win)
         else
-            throw(e)  # Every other kind of exception
+            rethrow()  # Every other kind of exception
         end
     end
         return 0
