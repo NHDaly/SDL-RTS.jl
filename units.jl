@@ -39,8 +39,6 @@ set_health!(x::Fighter, h) = (x.health = h)
 @noinline build_cost(::Type{Collector}) = (global kMaxHealth_Collector; kBuildCost_Collector)
 @noinline build_cost(::Type{Fighter}) = (global kMaxHealth_Collector; kBuildCost_Fighter)
 
-@noinline money_persec_percollector() = kMoneyPersecPercollector # 1 every n secs
-
 unit_types = (Collector, Fighter)
 UnitTypes = Union{unit_types...}
 

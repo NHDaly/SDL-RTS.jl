@@ -24,7 +24,7 @@ mutable struct Player
 end
 
 function update!(p::Player, dt)
-    p.money += length(p.units.collectors) * money_persec_percollector() * dt
+    p.money += length(p.units.collectors) * kMoneyPersecPercollector * dt
 
     for bop in p.build_ops
         update!(bop.timer, dt)

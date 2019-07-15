@@ -416,8 +416,7 @@ function performUpdates!(scene::GameScene, dt)
     update!(p1, dt)
     update!(p2, dt)
 
-    performAttackUpdate!(p1, p2, dt)
-    performAttackUpdate!(p2, p1, dt)
+    performAttackUpdate!(dt)
 
     moveCamIfMouseOnEdge!(dt)
     #updateFoodParticles(dt)
@@ -577,13 +576,10 @@ function attackToggle(pTarget, p)
         end
     end
 end
-function performAttackUpdate!(p, pTarget, dt)
-    if !attackingMap[p]
-        return
-    end
+function performAttackUpdate!(dt)
     # Move units towards pTarget's units
     units_to_destroy = []
-    for f in p.units.fighters
+    for f in [p1.units.fighters..., p2.units.fighters...]
         # Stop attacking if target already dead or not attacking anything
         if f.attackTargetUnit == nothing || f.attackTargetUnit.health <= 0
             f.attackTargetUnit = nothing
@@ -599,6 +595,7 @@ function performAttackUpdate!(p, pTarget, dt)
         end
     end
     for f in units_to_destroy
+        set_health!(f, 0)
         destroy_unit!(f)
     end
 end

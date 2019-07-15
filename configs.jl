@@ -62,7 +62,7 @@ kBuildTime_Fighter = 10
 kBuildCost_Collector = 3
 kBuildCost_Fighter = 5
 
-kMoneyPersecPercollector = 1/3.0 # 1 every n secs
+kMoneyPersecPercollector = 1/1.0 # 1 every n secs
 
 kFighterSpeed = 100 # feet/sec
 
